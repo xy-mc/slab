@@ -1,4 +1,3 @@
-
 #ifndef __GNUC__
 # error Can be compiled only with GCC.
 #endif
