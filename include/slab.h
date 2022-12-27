@@ -11,6 +11,7 @@
 extern size_t slab_pagesize;
 
 struct slab_header {
+    //双指针
     struct slab_header *prev, *next;
     uint64_t slots;
     uintptr_t refcount;
@@ -19,10 +20,11 @@ struct slab_header {
 };
 
 struct slab_chain {
-    size_t itemsize, itemcount;
-    size_t slabsize, pages_per_alloc;
+    size_t itemsize, itemcount;         //一个项大小，一个slab的项数
+    size_t slabsize, pages_per_alloc;   //slab大小，一个slab多少个页
     uint64_t initial_slotmask, empty_slotmask;
-    uintptr_t alignment_mask;
+    uintptr_t alignment_mask;   //对齐
+    //部分满队列，空队列，满队列
     struct slab_header *partial, *empty, *full;
 };
 
