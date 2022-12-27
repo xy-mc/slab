@@ -35,7 +35,7 @@
     )
 
 #define POWEROF2(x) ((x) != 0 && ((x) & ((x) - 1)) == 0)
-
+//使用__buildin_except 定义LIKELY和UNLIKELY宏，分别代表bool型变量或表达式有很大可能性为真或者很大可能性为假。
 #define LIKELY(exp) __builtin_expect(exp, 1)
 #define UNLIKELY(exp) __builtin_expect(exp, 0)
 
