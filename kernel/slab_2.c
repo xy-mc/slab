@@ -87,6 +87,7 @@ kmem_cache_grow(kmem_cache_t cp) {
     else {
         // allocating pages
         if (0 != posix_memalign(&mem, PAGE_SZ, (cp->slab_maxbuf * cp->effsize)/PAGE_SZ))//第三个参数是第二个参数的整数倍,第二个参数为2的幂
+            //我感觉这里有点问题,第三个参数大概率很小啊
             return;
 
         // allocating slab
@@ -105,7 +106,7 @@ kmem_cache_grow(kmem_cache_t cp) {
         // creating addtl bufctls
         for (i=1; i < cp->slab_maxbuf; i++) {
             bufctl[i].next = slab->free_list;
-            bufctl[i].buf = mem + (i*cp->effsize + (PAGE_SZ%cp->effsize * (((i+1)*cp->effsize)/PAGE_SZ)));//没太看懂
+            bufctl[i].buf = mem + (i*cp->effsize + (PAGE_SZ%cp->effsize * (((i+1)*cp->effsize)/PAGE_SZ)));//没太看懂(这里可能是染色)
             bufctl[i].slab = slab;
             slab->free_list = &bufctl[i];
         }
@@ -137,13 +138,13 @@ kmem_cache_alloc(kmem_cache_t cp, int flags) {
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {
         buf = cp->slabs->free_list;
         cp->slabs->free_list = *((void**)buf);
-        cp->slabs->bufcount++;   
+        cp->slabs->bufcount++;   //链表操作看看最下面那三个涉及链表的就能懂了
     }
     else {
         kmem_bufctl_t bufctl = cp->slabs->free_list;
         cp->slabs->free_list = bufctl->next;
         buf = bufctl->buf;
-        cp->slabs->bufcount++;
+        cp->slabs->bufcount++;//这也是链表操作
     }
 
     // if slab is empty
@@ -168,7 +169,7 @@ kmem_cache_free(kmem_cache_t cp, void *buf) {
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {
         // compute slab position
         // TODO: DO IT GENERIC (PAGE_SZ != 0x1000)
-        mem = (void*)((long)buf >> 12 << 12); 
+        mem = (void*)((long)buf >> 12 << 12); //为啥要移掉低十二位呢,也是页表吗
         slab = mem + PAGE_SZ - sizeof(struct kmem_slab);
 
         // put buffer back in the slab free list
