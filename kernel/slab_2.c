@@ -63,7 +63,7 @@ kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的sla
     // if this is a small object
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，slab分配一个页
         // allocating one page
-        if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪
+        if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪  你自己查
             return;
 
         // positioning slab at the end of the page
@@ -174,7 +174,7 @@ kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {        //小对象
         // compute slab position
         // TODO: DO IT GENERIC (PAGE_SZ != 0x1000)
-        mem = (void*)((long)buf >> 12 << 12); //为啥要移掉低十二位呢,也是页表吗
+        mem = (void*)((long)buf >> 12 << 12); //mem是4kb对齐的,移掉低12位就可以找到所属的mem
         //zys:上面的这个操作的目的是找到这个buf属于的slab，因为不会超过一个页，所以起始位置一定在这个页页首地址
         slab = mem + PAGE_SZ - sizeof(struct kmem_slab);    //zys:根据上一行所说的，这样就能找到所属slab，小对象没有bufct1
 
@@ -199,22 +199,25 @@ kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     // if this is a large object
     //这块已经注释掉了不太明白为啥
     else {      //zys:free大对象操作，估计是没有完善，这部分后续再补充吧
-        // use hash table to get to bufctl
+        //use hash table to get to bufctl
 
-        // ...
-        // bufctl = (kmem_cache_t)0x4000;
-        // slab = bufctl->slab;
-        // put bufctl back in the slab free list
-        // bufctl->next = slab->free_list;
-        // slab->free_list = bufctl;
-
-        // if slab is now complete, discard whole page
-        // if (slab->bufcount == 0) {
-        //     __slab_remove(cp, slab);
-        //     free(slab->start->buf); // free objects
-        //     free(slab->start); // free bufctls
-        //     free(slab); // free slab
-        // }   
+        //...
+        bufctl = (kmem_cache_t)0x4000;//这里是4kb是为啥呢
+        slab = bufctl->slab;
+        //put bufctl back in the slab free list
+        bufctl->next = slab->free_list;
+        slab->free_list = bufctl;
+        slab->bufcount--;
+        //if slab is now complete, discard whole page
+        if (slab->bufcount == 0) {
+            __slab_remove(cp, slab);
+            free(slab->start->buf); // free objects
+            free(slab->start); // free bufctls
+            free(slab); // free slab
+        }   
+         // if slab WAS empty, re-add to non-empty slabs
+        if (slab->bufcount == cp->slab_maxbuf-1)    //zys:如果原本是满的，放回队头
+            __slab_move_to_front(cp, slab);
     }
 }
 
