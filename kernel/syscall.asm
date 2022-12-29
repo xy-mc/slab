@@ -38,6 +38,12 @@ _NR_opendir 		equ 25 ;    //added by mingxuan 2019-5-17
 _NR_createdir  		equ 26 ;    //added by mingxuan 2019-5-17
 _NR_deletedir   	equ 27 ;    //added by mingxuan 2019-5-17
 
+
+_NR_kmem_cache_create  		equ 28; //added by lq 2022-12-30
+_NR_kmem_cache_alloc  		equ 29; //added by lq 2022-12-30
+_NR_kmem_cache_free  		equ 30; //added by lq 2022-12-30
+_NR_kmem_cache_destroy  	equ 31; //added by lq 2022-12-30
+_NR_kmem_cache_grow  		equ 32; //added by lq 2022-12-30
 INT_VECTOR_SYS_CALL	equ 0x90
 
 ; 导出符号
@@ -71,6 +77,8 @@ global	delete		;		//added by mingxuan 2019-5-17
 global  opendir		;		//added by mingxuan 2019-5-17
 global	createdir	;		//added by mingxuan 2019-5-17
 global  deletedir	;		//added by mingxuan 2019-5-17
+
+
 
 bits 32
 [section .text]

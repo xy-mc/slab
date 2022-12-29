@@ -1,6 +1,17 @@
 {
     "C_Cpp.errorSquiggles": "disabled",
     "files.associations": {
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "assert.h": "c",
+        "slab.h": "c",
+        "stdarg.h": "c",
+        "const.h": "c",
+        "cstdlib": "c",
+        "string.h": "c",
+        "proto.h": "c",
+        "global.h": "c",
+        "proc.h": "c",
+        "protect.h": "c"
     }
 }

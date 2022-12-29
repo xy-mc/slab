@@ -1,602 +1,351 @@
+//#include <stdlib.h>
+
+// #include "stdio.h"
+// #include "assert.h"
 #include "slab.h"
 #include "stdio.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <sys/mman.h>
-#include <math.h>
+#include "protect.h"
+#include "proc.h"
+#include "global.h"
+#include "proto.h"
+
 #include "assert.h"
+#include "string.h"
+// #include "slab.h"
+/*  Creates a cache of objects.
 
-#define SLAB_DUMP_COLOURED
+    @name used for reference
+    @size size of the objects
+    @align align boundary
+    @constructor object constructor
+    @destructor object destructor
 
-#ifdef SLAB_DUMP_COLOURED
-# define GRAY(s)   "\033[1;30m" s "\033[0m"
-# define RED(s)    "\033[0;31m" s "\033[0m"
-# define GREEN(s)  "\033[0;32m" s "\033[0m"
-# define YELLOW(s) "\033[1;33m" s "\033[0m"
-#else
-# define GRAY(s)   s
-# define RED(s)    s
-# define GREEN(s)  s
-# define YELLOW(s) s
-#endif
+    Returns a cache pointer or NULL if no memory is available.
+*/
+kmem_cache_t
+kmem_cache_create(char *name, size_t size, int align, 
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t)) { //zys:整一个新的缓冲器
 
-#define SLOTS_ALL_ZERO ((uint64_t) 0)
-#define SLOTS_FIRST ((uint64_t) 1)
-#define FIRST_FREE_SLOT(s) ((size_t) __builtin_ctzll(s))//返回括号内数的二进制表示形式中末尾0的个数
-#define FREE_SLOTS(s) ((size_t) __builtin_popcountll(s))//返回括号内数的二进制表示形式中1的个数
-#define ONE_USED_SLOT(slots, empty_slotmask) \
-    ( \
-        ( \
-            (~(slots) & (empty_slotmask))       & \
-            ((~(slots) & (empty_slotmask)) - 1)   \
-        ) == SLOTS_ALL_ZERO \
-    )
+    kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
 
-#define POWEROF2(x) ((x) != 0 && ((x) & ((x) - 1)) == 0)
-//使用__buildin_except 定义LIKELY和UNLIKELY宏，分别代表bool型变量或表达式有很大可能性为真或者很大可能性为假。
-#define LIKELY(exp) __builtin_expect(exp, 1)
-#define UNLIKELY(exp) __builtin_expect(exp, 0)
+    if (cp != NULL) {
+        if (align == 0) align = SLAB_DEFAULT_ALIGN;//内存对齐
 
-size_t slab_pagesize;
+        cp->name = name;
+        cp->size = size;    //zys:对象大小
+        cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
+        cp->constructor = constructor;  //zys:构造函数
+        cp->destructor = destructor;    //zys:析构函数
+        cp->slabs = NULL;       //zys:刚开始初始化为空
+        cp->slabs_back = NULL;
 
-#ifndef NDEBUG
-static int slab_is_valid(const struct slab_chain *const sch)
-{
-    assert(POWEROF2(slab_pagesize));
-    assert(POWEROF2(sch->slabsize));
-    assert(POWEROF2(sch->pages_per_alloc));
+        // if this is for small object
+        if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，对象大小不超过1/8页，即512B
+            cp->slab_maxbuf = (PAGE_SZ - sizeof(struct kmem_slab)) / cp->effsize;   //记录能容纳slab的最大个数
+        }
+        else {      //zys:大对象
+            // TODO: compute number of objects programmatically
+            cp->slab_maxbuf = 8;
 
-    assert(sch->itemcount >= 2 && sch->itemcount <= 64);
-    assert(sch->itemsize >= 1 && sch->itemsize <= SIZE_MAX);
-    assert(sch->pages_per_alloc >= slab_pagesize);
-    assert(sch->pages_per_alloc >= sch->slabsize);
+            // create hash table...
+            // hcreate(cp->slab_maxbuf * 100);
+        }
+    }
+    
+    return cp;
+    //创建的对象
+}
 
-    assert(offsetof(struct slab_header, data) +
-        sch->itemsize * sch->itemcount <= sch->slabsize);
+/* Grow a specified cache. Specifically adds one slab to it.
 
-    assert(sch->empty_slotmask == ~SLOTS_ALL_ZERO >> (64 - sch->itemcount));
-    assert(sch->initial_slotmask == (sch->empty_slotmask ^ SLOTS_FIRST));
-    assert(sch->alignment_mask == ~(sch->slabsize - 1));
+   @cp cache pointer
+*/
+void 
+kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的slab
+    void *mem;
+    kmem_slab_t slab;
+    void *p, *lastbuf;
+    int i;
+    kmem_bufctl_t bufctl;
 
-    const struct slab_header *const heads[] =
-        {sch->full, sch->empty, sch->partial};
+    // if this is a small object
+    if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，slab分配一个页
+        // allocating one page
+        // if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪  你自己查
+            // return;
+        mem=sys_kmalloc_4k();
+        // positioning slab at the end of the page
+        slab = mem + PAGE_SZ - sizeof(struct kmem_slab);    //zys:放在页后面，最后一个字节为页尾
 
-    for (size_t head = 0; head < 3; ++head) {
-        const struct slab_header *prev = NULL, *slab;
+        slab->next = slab->prev = slab;         //zys:目前队列中就它一个
+        slab->bufcount = 0;                     //zys:用了0个对象
+        slab->free_list = mem;                  //zys:第一个空闲位置为第一个对象
+        
+        // creating linkage
+        lastbuf = mem + (cp->effsize * (cp->slab_maxbuf-1));    //zys:最后一个对象位置
+        for (p=mem; p < lastbuf; p+=cp->effsize)                //zys:看不懂这个操作    zys:想了下，应该是刚开始指针指向下一个的位置
+             *((void **)p) = p + cp->effsize;
 
-        for (slab = heads[head]; slab != NULL; slab = slab->next) {
-            if (prev == NULL)
-                assert(slab->prev == NULL);
-            else
-                assert(slab->prev == prev);
+        // complete slab at the front...
+        __slab_move_to_front(cp, slab);         //zys:放到队头
+        assert(cp->slabs == slab);      //zys:队头是不是这个slab
 
-            switch (head) {
-            case 0:
-                assert(slab->slots == SLOTS_ALL_ZERO);
-                break;
+        // printf("\n%p\n%p\n%#x\n%#x\n", mem, slab, sizeof(struct kmem_slab), sizeof(struct kmem_cache));
+    }
+    // if this is a large object
+    else {          //zys:大对象
+        // allocating pages
+        // if (0 != posix_memalign(&mem, PAGE_SZ, (cp->slab_maxbuf * cp->effsize)/PAGE_SZ))//第三个参数是第二个参数的整数倍,第二个参数为2的幂
+            //我感觉这里有点问题,第三个参数大概率很小啊
+            // return;
+        mem=sys_kmalloc_4k();
+        // allocating slab
+        slab = (kmem_slab_t)sys_malloc(sizeof(struct kmem_slab));
+        
+        // initializing slab、
+        // zys: 这点和上面差不多
+        slab->next = slab->prev = slab;        
+        slab->bufcount = 0;
 
-            case 1:
-                assert(slab->slots == sch->empty_slotmask);
-                break;
+        bufctl = (kmem_bufctl_t)sys_malloc(sizeof(struct kmem_bufctl) * cp->slab_maxbuf);   //zys:分配大小
+        bufctl[0].next = NULL;      //zys:前一个为空
+        bufctl[0].buf = mem;        //zys:第一个位置
+        bufctl[0].slab = slab;      //zys:所属slab
+        slab->start = &bufctl[0];   //zys:slab开始
+        slab->free_list = &bufctl[0];   //zys:目前第一个空闲
+        // creating addtl bufctls
+        for (i=1; i < cp->slab_maxbuf; i++) {
+            bufctl[i].next = slab->free_list;   //zys:空闲列表最后一个
+            bufctl[i].buf = mem + (i*cp->effsize + (PAGE_SZ%cp->effsize * (((i+1)*cp->effsize)/PAGE_SZ)));//没太看懂(这里可能是染色)
+            //zys:上一行中，指的是buf位置
+            //zys:例如大小3K，4K%3K=1K，加数分别为1K，2K，3K，3K，4K，5K，6K
+            //zys:除了buf[0]外，偏移量也就分别是4K,8K,12K,15K,19K,23K,27K
+            bufctl[i].slab = slab;          //zys:没什么说的
+            slab->free_list = &bufctl[i];   //zys:指向新的
+        }
 
-            case 2:
-                assert((slab->slots & ~sch->empty_slotmask) == SLOTS_ALL_ZERO);
-                assert(FREE_SLOTS(slab->slots) >= 1);
-                assert(FREE_SLOTS(slab->slots) < sch->itemcount);
-                break;
-            }
+        // complete slab at the front...
+        __slab_move_to_front(cp, slab);        //zys:还是插队头
 
-            if (slab->refcount == 0) {
-                assert((uintptr_t) slab % sch->slabsize == 0);
+        // printf("\n%p\n%p\n%#x\n%#x\n", mem, slab, sizeof(struct kmem_slab), sizeof(struct kmem_cache));
+    }
+}
 
-                if (sch->slabsize >= slab_pagesize)
-                    assert((uintptr_t) slab->page % sch->slabsize == 0);
-                else
-                    assert((uintptr_t) slab->page % slab_pagesize == 0);
-            } else {
-                if (sch->slabsize >= slab_pagesize)
-                    assert((uintptr_t) slab % sch->slabsize == 0);
-                else
-                    assert((uintptr_t) slab % slab_pagesize == 0);
-            }
+/* Requests an allocated object from the cache. 
 
-            prev = slab;
+    @cp cache pointer
+    @flags flags KM_SLEEP or KM_NOSLEEP
+*/
+void *
+kmem_cache_alloc(kmem_cache_t cp, int flags) {
+    void *buf;
+
+    // grow the cache if necessary...
+    if (cp->slabs == NULL)      //zys:没有slab
+        kmem_cache_grow(cp);
+
+    if (cp->slabs->bufcount == cp->slab_maxbuf) //zys:队头的slab满了
+        kmem_cache_grow(cp);//已经满了搞一个新的
+
+    // if this is a small object
+    if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象
+        buf = cp->slabs->free_list;         //zys:空闲位置
+        cp->slabs->free_list = *((void**)buf);  //zys:指向下一个位置
+        cp->slabs->bufcount++;   //链表操作看看最下面那三个涉及链表的就能懂了   zys:已用+1
+    }
+    else {
+        kmem_bufctl_t bufctl = cp->slabs->free_list;    //zys:第一个空闲bufct1
+        cp->slabs->free_list = bufctl->next;            //zys:空闲链表指向下一个
+        buf = bufctl->buf;                  //返回地址
+        cp->slabs->bufcount++;//这也是链表操作
+    }
+
+    // if slab is empty
+    if (cp->slabs->bufcount == cp->slab_maxbuf) //满的放队尾，这块也就能理解为什么只检查队头是否满了
+        __slab_move_to_back(cp, cp->slabs);
+
+    return buf;     //返回分配的地址
+}
+
+/* Frees an allocated object from the cache. 
+
+    @cp cache pointer
+    @buf object pointer
+*/
+void 
+kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
+    void * mem;
+    kmem_slab_t slab;
+    // kmem_bufctl_t bufctl;
+
+    // if this is a small object
+    if (cp->size <= SLAB_SMALL_OBJ_SZ) {        //小对象
+        // compute slab position
+        // TODO: DO IT GENERIC (PAGE_SZ != 0x1000)
+        mem = (void*)((long)buf >> 12 << 12); //mem是4kb对齐的,移掉低12位就可以找到所属的mem
+        //zys:上面的这个操作的目的是找到这个buf属于的slab，因为不会超过一个页，所以起始位置一定在这个页页首地址
+        slab = mem + PAGE_SZ - sizeof(struct kmem_slab);    //zys:根据上一行所说的，这样就能找到所属slab，小对象没有bufct1
+
+        // put buffer back in the slab free list
+        *((void **)buf) = slab->free_list;  //zys:加入空闲队列，头插法
+        slab->free_list = buf;
+
+        slab->bufcount--;           //zys:已用-1
+    
+        // if slab is now complete, discard whole page
+        if (slab->bufcount == 0) {  //zys:空了，直接free，需要时候再分配
+            //zys:题外话，这块也体现了一点三链表思想
+            __slab_remove(cp, slab);
+            sys_free(mem);
+        }
+
+        // if slab WAS empty, re-add to non-empty slabs
+        if (slab->bufcount == cp->slab_maxbuf-1)    //zys:如果原本是满的，放回队头
+            __slab_move_to_front(cp, slab);
+
+    }
+    // if this is a large object
+    //这块已经注释掉了不太明白为啥
+    else {      //zys:free大对象操作，估计是没有完善，这部分后续再补充吧
+        //use hash table to get to bufctl
+
+        //...
+        // bufctl = (kmem_cache_t)0x4000;//这里是4kb是为啥呢
+        // slab = bufctl->slab;
+        // //put bufctl back in the slab free list
+        // bufctl->next = slab->free_list;
+        // slab->free_list = bufctl;
+        // slab->bufcount--;
+        // //if slab is now complete, discard whole page
+        // if (slab->bufcount == 0) {
+        //     __slab_remove(cp, slab);
+        //     free(slab->start->buf); // free objects
+        //     free(slab->start); // free bufctls
+        //     free(slab); // free slab
+        // }   
+        //  // if slab WAS empty, re-add to non-empty slabs
+        // if (slab->bufcount == cp->slab_maxbuf-1)    //zys:如果原本是满的，放回队头
+        //     __slab_move_to_front(cp, slab);
+    }
+}
+
+/* Destroys a specified cache.
+
+    @cp cache pointer
+*/
+void 
+kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的cache
+    kmem_slab_t slab;
+    void * mem;
+
+    if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //小对象slab的cache
+        // freeing all allocated memory
+        while (cp->slabs) {     //如果还有slab
+            slab = cp->slabs;
+            __slab_remove(cp, slab);    //移除这个slab
+            mem = (void*)slab - PAGE_SZ + sizeof(struct kmem_slab);
+            sys_free(mem);          //free掉slab
+        }
+    }
+    else {
+        while (cp->slabs) {
+            slab = cp->slabs;
+            __slab_remove(cp, slab);
+            //zys:这块因为涉及别的因为，需要全部free
+            sys_free(slab->start->buf); // free objects
+            sys_free(slab->start); // free bufctls
+            sys_free(slab); // free slab
         }
     }
 
-    return 1;
+    sys_free(cp);   //最后free掉cache结构体
 }
-#endif
 
-void slab_init(struct slab_chain *const sch, const size_t itemsize)
-{
-    assert(sch != NULL);
-    assert(itemsize >= 1 && itemsize <= SIZE_MAX);
-    assert(POWEROF2(slab_pagesize));
 
-    sch->itemsize = itemsize;
+/* Internal auxiliary to remove slab of freelist
 
-    const size_t data_offset = offsetof(struct slab_header, data);
-    const size_t least_slabsize = data_offset + 64 * sch->itemsize;
-    sch->slabsize = (size_t) 1 << (size_t) ceil(log2(least_slabsize));
-    sch->itemcount = 64;
+    @cp cache pointer
+    @slab slab pointer
+*/
+void
+__slab_remove(kmem_cache_t cp, kmem_slab_t slab) {  //从cp中删除slab
+    slab->next->prev = slab->prev;
+    slab->prev->next = slab->next;
+    //zys:循环双链表操作
 
-    if (sch->slabsize - least_slabsize != 0) {
-        const size_t shrinked_slabsize = sch->slabsize >> 1;
-
-        if (data_offset < shrinked_slabsize &&
-            shrinked_slabsize - data_offset >= 2 * sch->itemsize) {
-
-            sch->slabsize = shrinked_slabsize;
-            sch->itemcount = (shrinked_slabsize - data_offset) / sch->itemsize;
-        }
+    // if front slab...
+    if (cp->slabs == slab) {    //zys:如果是队头
+        // if last slab
+        if (slab->prev == slab)     //zys:如果还是队尾（队头后一个为自己）
+            cp->slabs = NULL;       //zys:队头指向空
+        else
+            cp->slabs = slab->prev; //zys:队头为其后一个
     }
 
-    sch->pages_per_alloc = sch->slabsize > slab_pagesize ?
-        sch->slabsize : slab_pagesize;
-
-    sch->empty_slotmask = ~SLOTS_ALL_ZERO >> (64 - sch->itemcount);
-    sch->initial_slotmask = sch->empty_slotmask ^ SLOTS_FIRST;
-    sch->alignment_mask = ~(sch->slabsize - 1);
-    sch->partial = sch->empty = sch->full = NULL;
-
-    assert(slab_is_valid(sch));
-}
-
-void *slab_alloc(struct slab_chain *const sch)
-{
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    if (LIKELY(sch->partial != NULL)) {
-        /* found a partial slab, locate the first free slot */
-        register const size_t slot = FIRST_FREE_SLOT(sch->partial->slots);
-        sch->partial->slots ^= SLOTS_FIRST << slot;
-
-        if (UNLIKELY(sch->partial->slots == SLOTS_ALL_ZERO)) {
-            /* slab has become full, change state from partial to full */
-            struct slab_header *const tmp = sch->partial;
-
-            /* skip first slab from partial list */
-            if (LIKELY((sch->partial = sch->partial->next) != NULL))
-                sch->partial->prev = NULL;
-
-            if (LIKELY((tmp->next = sch->full) != NULL))
-                sch->full->prev = tmp;
-
-            sch->full = tmp;
-            return sch->full->data + slot * sch->itemsize;
-        } else {
-            return sch->partial->data + slot * sch->itemsize;
-        }
-    } else if (LIKELY((sch->partial = sch->empty) != NULL)) {
-        /* found an empty slab, change state from empty to partial */
-        if (LIKELY((sch->empty = sch->empty->next) != NULL))
-            sch->empty->prev = NULL;
-
-        sch->partial->next = NULL;
-
-        /* slab is located either at the beginning of page, or beyond */
-        UNLIKELY(sch->partial->refcount != 0) ?
-            sch->partial->refcount++ : sch->partial->page->refcount++;
-
-        sch->partial->slots = sch->initial_slotmask;
-        return sch->partial->data;
-    } else {
-        /* no empty or partial slabs available, create a new one */
-        if (sch->slabsize <= slab_pagesize) {
-            sch->partial = mmap(NULL, sch->pages_per_alloc,
-                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-            if (UNLIKELY(sch->partial == MAP_FAILED))
-                return perror("mmap"), sch->partial = NULL;
-        } else {
-            const int err = posix_memalign((void **) &sch->partial,
-                sch->slabsize, sch->pages_per_alloc);
-
-            if (UNLIKELY(err != 0)) {
-                fprintf(stderr, "posix_memalign(align=%zu, size=%zu): %d\n",
-                    sch->slabsize, sch->pages_per_alloc, err);
-
-                return sch->partial = NULL;
-            }
-        }
-
-        struct slab_header *prev = NULL;
-
-        const char *const page_end =
-            (char *) sch->partial + sch->pages_per_alloc;
-
-        union {
-            const char *c;
-            struct slab_header *const s;
-        } curr = {
-            .c = (const char *) sch->partial + sch->slabsize
-        };
-
-        __builtin_prefetch(sch->partial, 1);
-
-        sch->partial->prev = sch->partial->next = NULL;
-        sch->partial->refcount = 1;
-        sch->partial->slots = sch->initial_slotmask;
-
-        if (LIKELY(curr.c != page_end)) {
-            curr.s->prev = NULL;
-            curr.s->refcount = 0;
-            curr.s->page = sch->partial;
-            curr.s->slots = sch->empty_slotmask;
-            sch->empty = prev = curr.s;
-
-            while (LIKELY((curr.c += sch->slabsize) != page_end)) {
-                prev->next = curr.s;
-                curr.s->prev = prev;
-                curr.s->refcount = 0;
-                curr.s->page = sch->partial;
-                curr.s->slots = sch->empty_slotmask;
-                prev = curr.s;
-            }
-
-            prev->next = NULL;
-        }
-
-        return sch->partial->data;
+    // if back slab
+    if (cp->slabs_back == slab) {   //zys:如果是队尾
+        // if last slab
+        if (slab->next == slab)     //zys:如果还是队头
+            cp->slabs_back = NULL;  //zys:队尾指向空
+        else
+            cp->slabs_back = slab->next;    //zys:队尾为其前一个
     }
-
-    /* unreachable */
+    //zys:注意以上两个判断是并行的，即都需要判断
 }
 
-void slab_free(struct slab_chain *const sch, const void *const addr)
-{
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-    assert(addr != NULL);
+/* Internal auxiliary to move slab to the front of freelist
 
-    struct slab_header *const slab = (void *)
-        ((uintptr_t) addr & sch->alignment_mask);
+    @cp cache pointer
+    @slab slab pointer
+*/
+void
+__slab_move_to_front(kmem_cache_t cp, kmem_slab_t slab) {   //zys:放到队列头
+    if (cp->slabs == slab) return;
 
-    register const int slot = ((char *) addr - (char *) slab -
-        offsetof(struct slab_header, data)) / sch->itemsize;
+    __slab_remove(cp, slab);    //zys:把这个删了
+    
+    // check if there is any slab in the cache
+    if (cp->slabs == NULL) {    //zys:删除后为空
+        slab->prev = slab;
+        slab->next = slab;
 
-    if (UNLIKELY(slab->slots == SLOTS_ALL_ZERO)) {
-        /* target slab is full, change state to partial */
-        slab->slots = SLOTS_FIRST << slot;
-
-        if (LIKELY(slab != sch->full)) {
-            if (LIKELY((slab->prev->next = slab->next) != NULL))
-                slab->next->prev = slab->prev;
-
-            slab->prev = NULL;
-        } else if (LIKELY((sch->full = sch->full->next) != NULL)) {
-            sch->full->prev = NULL;
-        }
-
-        slab->next = sch->partial;
-
-        if (LIKELY(sch->partial != NULL))
-            sch->partial->prev = slab;
-
-        sch->partial = slab;
-    } else if (UNLIKELY(ONE_USED_SLOT(slab->slots, sch->empty_slotmask))) {
-        /* target slab is partial and has only one filled slot */
-        if (UNLIKELY(slab->refcount == 1 || (slab->refcount == 0 &&
-            slab->page->refcount == 1))) {
-
-            /* unmap the whole page if this slab is the only partial one */
-            if (LIKELY(slab != sch->partial)) {
-                if (LIKELY((slab->prev->next = slab->next) != NULL))
-                    slab->next->prev = slab->prev;
-            } else if (LIKELY((sch->partial = sch->partial->next) != NULL)) {
-                sch->partial->prev = NULL;
-            }
-
-            void *const page = UNLIKELY(slab->refcount != 0) ? slab : slab->page;
-            const char *const page_end = (char *) page + sch->pages_per_alloc;
-            char found_head = 0;
-
-            union {
-                const char *c;
-                const struct slab_header *const s;
-            } s;
-
-            for (s.c = page; s.c != page_end; s.c += sch->slabsize) {
-                if (UNLIKELY(s.s == sch->empty))
-                    found_head = 1;
-                else if (UNLIKELY(s.s == slab))
-                    continue;
-                else if (LIKELY((s.s->prev->next = s.s->next) != NULL))
-                    s.s->next->prev = s.s->prev;
-            }
-
-            if (UNLIKELY(found_head && (sch->empty = sch->empty->next) != NULL))
-                sch->empty->prev = NULL;
-
-            if (sch->slabsize <= slab_pagesize) {
-                if (UNLIKELY(munmap(page, sch->pages_per_alloc) == -1))
-                    perror("munmap");
-            } else {
-                free(page);
-            }
-        } else {
-            slab->slots = sch->empty_slotmask;
-
-            if (LIKELY(slab != sch->partial)) {
-                if (LIKELY((slab->prev->next = slab->next) != NULL))
-                    slab->next->prev = slab->prev;
-
-                slab->prev = NULL;
-            } else if (LIKELY((sch->partial = sch->partial->next) != NULL)) {
-                sch->partial->prev = NULL;
-            }
-
-            slab->next = sch->empty;
-
-            if (LIKELY(sch->empty != NULL))
-                sch->empty->prev = slab;
-
-            sch->empty = slab;
-
-            UNLIKELY(slab->refcount != 0) ?
-                slab->refcount-- : slab->page->refcount--;
-        }
-    } else {
-        /* target slab is partial, no need to change state */
-        slab->slots |= SLOTS_FIRST << slot;
+        cp->slabs_back = slab;  //zys:队尾也是它
     }
-}
-
-void slab_traverse(const struct slab_chain *const sch, void (*fn)(const void *))
-{
-    assert(sch != NULL);
-    assert(fn != NULL);
-    assert(slab_is_valid(sch));
-
-    const struct slab_header *slab;
-    const char *item, *end;
-    const size_t data_offset = offsetof(struct slab_header, data);
-
-    for (slab = sch->partial; slab; slab = slab->next) {
-        item = (const char *) slab + data_offset;
-        end = item + sch->itemcount * sch->itemsize;
-        uint64_t mask = SLOTS_FIRST;
-
-        do {
-            if (!(slab->slots & mask))
-                fn(item);
-
-            mask <<= 1;
-        } while ((item += sch->itemsize) != end);
+    else {
+        slab->prev = cp->slabs; //zys:后一个是当前头
+        cp->slabs->next = slab; //zys:当前头前一个是其
+        //zys:同样的链表操作，双向循环链表
+        slab->next = cp->slabs_back;
+        cp->slabs_back->prev = slab;
     }
+    cp->slabs = slab;
+}
 
-    for (slab = sch->full; slab; slab = slab->next) {
-        item = (const char *) slab + data_offset;
-        end = item + sch->itemcount * sch->itemsize;
+/* Internal auxiliary to move slab to the front of freelist
 
-        do fn(item);
-        while ((item += sch->itemsize) != end);
+    @cp cache pointer
+    @slab slab pointer
+*/
+void
+__slab_move_to_back(kmem_cache_t cp, kmem_slab_t slab) {    //zys:插到队尾，参考上一个函数的注释
+    if (cp->slabs_back == slab) return;
+    
+    __slab_remove(cp, slab);
+
+    // check if there is any slab in the cache
+    if (cp->slabs == NULL) {
+        slab->prev = slab;
+        slab->next = slab;
+
+        cp->slabs = slab;
     }
-}
+    else {
+        slab->prev = cp->slabs;
+        cp->slabs->next = slab;
 
-void slab_destroy(const struct slab_chain *const sch)
-{
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    struct slab_header *const heads[] = {sch->partial, sch->empty, sch->full};
-    struct slab_header *pages_head = NULL, *pages_tail;
-
-    for (size_t i = 0; i < 3; ++i) {
-        struct slab_header *slab = heads[i];
-
-        while (slab != NULL) {
-            if (slab->refcount != 0) {
-                struct slab_header *const page = slab;
-                slab = slab->next;
-
-                if (UNLIKELY(pages_head == NULL))
-                    pages_head = page;
-                else
-                    pages_tail->next = page;
-
-                pages_tail = page;
-            } else {
-                slab = slab->next;
-            }
-        }
+        slab->next = cp->slabs_back;
+        cp->slabs_back->prev = slab;
     }
-
-    if (LIKELY(pages_head != NULL)) {
-        pages_tail->next = NULL;
-        struct slab_header *page = pages_head;
-
-        if (sch->slabsize <= slab_pagesize) {
-            do {
-                void *const target = page;
-                page = page->next;
-
-                if (UNLIKELY(munmap(target, sch->pages_per_alloc) == -1))
-                    perror("munmap");
-            } while (page != NULL);
-        } else {
-            do {
-                void *const target = page;
-                page = page->next;
-                free(target);
-            } while (page != NULL);
-        }
-    }
+    cp->slabs_back = slab;
 }
-
-static void slab_dump(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    const struct slab_header *const heads[] =
-        {sch->partial, sch->empty, sch->full};
-
-    const char *labels[] = {"part", "empt", "full"};
-
-    for (size_t i = 0; i < 3; ++i) {
-        const struct slab_header *slab = heads[i];
-
-        fprintf(out,
-            YELLOW("%6s ") GRAY("|%2d%13s|%2d%13s|%2d%13s|%2d%13s") "\n",
-            labels[i], 64, "", 48, "", 32, "", 16, "");
-
-        unsigned long long total = 0, row;
-
-        for (row = 1; slab != NULL; slab = slab->next, ++row) {
-            const unsigned used = sch->itemcount - FREE_SLOTS(slab->slots);
-            fprintf(out, GRAY("%6llu "), row);
-
-            for (int k = 63; k >= 0; --k) {
-                fprintf(out, slab->slots & (SLOTS_FIRST << k) ? GREEN("1") :
-                    ((size_t) k >= sch->itemcount ? GRAY("0") : RED("0")));
-            }
-
-            fprintf(out, RED(" %8u") "\n", used);
-            total += used;
-        }
-
-        fprintf(out,
-            GREEN("%6s ") GRAY("^%15s^%15s^%15s^%15s") YELLOW(" %8llu") "\n\n",
-            "", "", "", "", "", total);
-    }
-}
-
-static void slab_stats(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    long long unsigned
-        total_nr_slabs = 0,
-        total_used_slots = 0,
-        total_free_slots = 0;
-
-    float occupancy;
-
-    const struct slab_header *const heads[] =
-        {sch->partial, sch->empty, sch->full};
-
-    const char *labels[] = {"Partial", "Empty", "Full"};
-
-    fprintf(out, "%8s %17s %17s %17s %17s\n", "",
-        "Slabs", "Used", "Free", "Occupancy");
-
-    for (size_t i = 0; i < 3; ++i) {
-        long long unsigned nr_slabs = 0, used_slots = 0, free_slots = 0;
-        const struct slab_header *slab;
-
-        for (slab = heads[i]; slab != NULL; slab = slab->next) {
-            nr_slabs++;
-            used_slots += sch->itemcount - FREE_SLOTS(slab->slots);
-            free_slots += FREE_SLOTS(slab->slots);
-        }
-
-        occupancy = used_slots + free_slots ?
-            100 * (float) used_slots / (used_slots + free_slots) : 0.0;
-
-        fprintf(out, "%8s %17llu %17llu %17llu %16.2f%%\n",
-            labels[i], nr_slabs, used_slots, free_slots, occupancy);
-
-        total_nr_slabs += nr_slabs;
-        total_used_slots += used_slots;
-        total_free_slots += free_slots;
-    }
-
-    occupancy = total_used_slots + total_free_slots ?
-        100 * (float) total_used_slots / (total_used_slots + total_free_slots) :
-        0.0;
-
-    fprintf(out, "%8s %17llu %17llu %17llu %16.2f%%\n", "Total",
-        total_nr_slabs, total_used_slots, total_free_slots, occupancy);
-}
-
-static void slab_props(FILE *const out, const struct slab_chain *const sch)
-{
-    assert(out != NULL);
-    assert(sch != NULL);
-    assert(slab_is_valid(sch));
-
-    fprintf(out,
-        "%18s: %8zu\n"
-        "%18s: %8zu = %.2f * (%zu pagesize)\n"
-        "%18s: %8zu = (%zu offset) + (%zu itemcount) * (%zu itemsize)\n"
-        "%18s: %8zu = (%zu slabsize) - (%zu total)\n"
-        "%18s: %8zu = %zu * (%zu pagesize)\n"
-        "%18s: %8zu = (%zu alloc) / (%zu slabsize)\n",
-
-        "pagesize",
-            slab_pagesize,
-
-        "slabsize",
-            sch->slabsize, (float) sch->slabsize / slab_pagesize, slab_pagesize,
-
-        "total",
-            offsetof(struct slab_header, data) + sch->itemcount * sch->itemsize,
-            offsetof(struct slab_header, data), sch->itemcount, sch->itemsize,
-
-        "waste per slab",
-            sch->slabsize - offsetof(struct slab_header, data) -
-            sch->itemcount * sch->itemsize, sch->slabsize,
-            offsetof(struct slab_header, data) + sch->itemcount * sch->itemsize,
-
-        "pages per alloc",
-            sch->pages_per_alloc, sch->pages_per_alloc / slab_pagesize,
-            slab_pagesize,
-
-        "slabs per alloc",
-            sch->pages_per_alloc / sch->slabsize, sch->pages_per_alloc,
-            sch->slabsize
-    );
-}
-
-#if 1
-struct slab_chain s;
-double *allocs[16 * 60];
-
-#define SLAB_DUMP { \
-    puts("\033c"); \
-    slab_props(stdout, &s); \
-    puts(""); \
-    slab_stats(stdout, &s); \
-    puts(""); \
-    slab_dump(stdout, &s); \
-    fflush(stdout); \
-    usleep(100000); \
-}
-
-__attribute__((unused)) static void fn (const void *item)
-{
-    printf("func %.3f\n", *((double *) item));
-}
-
-int main(void)
-{
-    setvbuf(stdout, NULL, _IOFBF, 0xFFFF);
-
-    slab_pagesize = (size_t) sysconf(_SC_PAGESIZE);
-    slab_init(&s, sizeof(double));
-
-    for (size_t i = 0; i < sizeof(allocs) / sizeof(*allocs); i++) {
-        allocs[i] = slab_alloc(&s);
-        assert(allocs[i] != NULL);
-        *allocs[i] = i * 4;
-        SLAB_DUMP;
-    }
-
-    for (ssize_t i = sizeof(allocs) / sizeof(*allocs) - 1; i >= 0; i--) {
-        slab_free(&s, allocs[i]);
-        SLAB_DUMP;
-    }
-
-    slab_destroy(&s);
-
-    return 0;
-}
-#endif

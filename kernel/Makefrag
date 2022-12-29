@@ -28,11 +28,11 @@ KERN_SRCFILES :=kernel/kernel.asm	\
 		kernel/base.c	\
 		kernel/start.c	\
 		kernel/i8259.c	\
+		kernel/slab.c 	\
 		kernel/testfunc.c	\
 		kernel/protect.c	\
 		lib/klib.c		\
 		lib/kliba.asm		\
-
 
 KERN_OBJFILES	:= $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES	:= $(patsubst %.asm, $(OBJDIR)/%.o, $(KERN_OBJFILES))
