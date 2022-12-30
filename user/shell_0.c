@@ -12,7 +12,6 @@ int main(int arg, char *argv[])
 	int stdin = open("dev_tty0", O_RDWR);
 	int stdout = open("dev_tty0", O_RDWR);
 	int stderr = open("dev_tty0", O_RDWR);
-
 	char buf[1024];
 	int pid;
 	int times = 0;

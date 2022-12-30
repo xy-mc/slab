@@ -47,27 +47,27 @@ struct kmem_cache { //slab缓存
 };
 
 
-kmem_cache_t
-kmem_cache_create(char *name, size_t size, int align, 
-                  void (*constructor)(void *, size_t),
-                  void (*destructor)(void *, size_t));
+// kmem_cache_t
+// kmem_cache_create(char *name, size_t size, int align, 
+//                   void (*constructor)(void *, size_t),
+//                   void (*destructor)(void *, size_t));
 
 
-void *
-kmem_cache_alloc(kmem_cache_t cp, int flags);
+// void *
+// kmem_cache_alloc(kmem_cache_t cp, int flags);
 
-void 
-kmem_cache_free(kmem_cache_t cp, void *buf);
+// void 
+// kmem_cache_free(kmem_cache_t cp, void *buf);
 
-void 
-kmem_cache_destroy(kmem_cache_t cp);
+// void 
+// kmem_cache_destroy(kmem_cache_t cp);
 
-// TODO
-void 
-kmem_cache_grow(kmem_cache_t cp);
+// // TODO
+// void 
+// kmem_cache_grow(kmem_cache_t cp);
 
-void 
-kmem_cache_reap(void);
+// void 
+// kmem_cache_reap(void);
 
 void
 __slab_remove(kmem_cache_t cp, kmem_slab_t slab);

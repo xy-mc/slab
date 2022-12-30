@@ -4,7 +4,7 @@
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                                                     Forrest Yu, 2005
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-
+#include "slab.h"
 /* klib.asm */
 void	disp_str(char* info);
 void	disp_int(int input);
@@ -87,7 +87,21 @@ void yield();				//added by xw, 18/4/19
 void sleep(int n);			//added by xw, 18/4/19
 void print_E();
 void print_F();
+kmem_cache_t
+kmem_cache_create(char *name, size_t size, int align,  
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t));   //added by 
+void *
+kmem_cache_alloc(kmem_cache_t cp, int flags);
 
+void 
+kmem_cache_free(kmem_cache_t cp, void *buf);
+
+void 
+kmem_cache_destroy(kmem_cache_t cp);
+
+void 
+kmem_cache_grow(kmem_cache_t cp);
 /* syscallc.c */		//edit by visual 2016.4.6
 int   sys_get_ticks();           /* sys_call */
 int   sys_get_pid();				//add by visual 2016.4.6
@@ -119,6 +133,22 @@ u32 sys_exec(char* path);		//add by visual 2016.5.23
 /*fork.c*/
 int sys_fork();					//add by visual 2016.5.25
 
+/*slab.c*/
+kmem_cache_t
+sys_kmem_cache_create(char *name, size_t size, int align,  
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t));   //added by 
+void *
+sys_kmem_cache_alloc(kmem_cache_t cp, int flags);
+
+void 
+sys_kmem_cache_free(kmem_cache_t cp, void *buf);
+
+void 
+sys_kmem_cache_destroy(kmem_cache_t cp);
+
+void 
+sys_kmem_cache_grow(kmem_cache_t cp);
 /***************************************************************
 * 以上是系统调用相关函数的声明	
 ****************************************************************/

@@ -23,12 +23,12 @@
     Returns a cache pointer or NULL if no memory is available.
 */
 kmem_cache_t
-kmem_cache_create(char *name, size_t size, int align, 
+sys_kmem_cache_create(char *name, size_t size, int align, 
                   void (*constructor)(void *, size_t),
                   void (*destructor)(void *, size_t)) { //zys:整一个新的缓冲器
-
+    panic("error");
     kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
-
+    panic("error");
     if (cp != NULL) {
         if (align == 0) align = SLAB_DEFAULT_ALIGN;//内存对齐
 
@@ -62,7 +62,7 @@ kmem_cache_create(char *name, size_t size, int align,
    @cp cache pointer
 */
 void 
-kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的slab
+sys_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的slab
     void *mem;
     kmem_slab_t slab;
     void *p, *lastbuf;
@@ -138,7 +138,7 @@ kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的sla
     @flags flags KM_SLEEP or KM_NOSLEEP
 */
 void *
-kmem_cache_alloc(kmem_cache_t cp, int flags) {
+sys_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     void *buf;
 
     // grow the cache if necessary...
@@ -174,7 +174,7 @@ kmem_cache_alloc(kmem_cache_t cp, int flags) {
     @buf object pointer
 */
 void 
-kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
+sys_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     void * mem;
     kmem_slab_t slab;
     // kmem_bufctl_t bufctl;
@@ -235,7 +235,7 @@ kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     @cp cache pointer
 */
 void 
-kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的cache
+sys_kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的cache
     kmem_slab_t slab;
     void * mem;
 

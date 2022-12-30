@@ -79,6 +79,12 @@ global	createdir	;		//added by mingxuan 2019-5-17
 global  deletedir	;		//added by mingxuan 2019-5-17
 
 
+global  kmem_cache_create	;		//added by lq 2022-12-30
+global  kmem_cache_alloc	;		//added by lq 2022-12-30
+global  kmem_cache_free	    ;		//added by lq 2022-12-30
+global  kmem_cache_grow	    ;		//added by lq 2022-12-30
+global  kmem_cache_destroy	;		//added by lq 2022-12-30
+
 
 bits 32
 [section .text]
@@ -101,68 +107,68 @@ get_pid:
 ; ; ====================================================================
 ; ;                              kmalloc		//add by visual 2016.4.6
 ; ; ====================================================================
-; kmalloc:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!
-; 	mov	eax, _NR_kmalloc
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+ kmalloc:
+ 	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!
+ 	mov	eax, _NR_kmalloc
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 	
 ; ; ====================================================================
 ; ;                              kmalloc_4k		//add by visual 2016.4.7
 ; ; ====================================================================
-; kmalloc_4k:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
-; 	mov	eax, _NR_kmalloc_4k
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+ kmalloc_4k:
+ 	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	eax, _NR_kmalloc_4k
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 	
 ; ; ====================================================================
 ; ;                              malloc		//add by visual 2016.4.7
 ; ; ====================================================================
-; malloc:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
-; 	mov	eax, _NR_malloc
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+malloc:
+	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	eax, _NR_malloc
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 	
 ; ; ====================================================================
 ; ;                              malloc_4k		//add by visual 2016.4.7
 ; ; ====================================================================
-; malloc_4k:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
-; 	mov	eax, _NR_malloc_4k
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+ malloc_4k:
+ 	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	eax, _NR_malloc_4k
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 
 ; ; ====================================================================
 ; ;                              free		//add by visual 2016.4.7
 ; ; ====================================================================
-; free:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
-; 	mov	eax, _NR_free
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+ free:
+ 	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	eax, _NR_free
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 
 ; ; ====================================================================
 ; ;                              free_4k		//add by visual 2016.4.7
 ; ; ====================================================================
-; free_4k:
-; 	push	ebx
-; 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
-; 	mov	eax, _NR_free_4k
-; 	int	INT_VECTOR_SYS_CALL
-; 	pop	ebx
-; 	ret
+ free_4k:
+ 	push	ebx
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	eax, _NR_free_4k
+ 	int	INT_VECTOR_SYS_CALL
+ 	pop	ebx
+ 	ret
 	
 ; ====================================================================
 ;                              fork		//add by visual 2016.4.8
@@ -364,6 +370,59 @@ deletedir:
 	push	ebx
 	mov	ebx, esp
 	mov	eax, _NR_deletedir
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+
+
+
+; ====================================================================
+;                        kmem_cache_create		//added by lq, 22/12/30
+; ====================================================================
+kmem_cache_create:
+	push	ebx			
+	mov	ebx, esp
+	mov	eax, _NR_kmem_cache_create
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+; ====================================================================
+;                        kmem_cache_free		//added by lq, 22/12/30
+; ====================================================================
+kmem_cache_free:
+	push	ebx			
+	mov	ebx, esp
+	mov	eax, _NR_kmem_cache_free
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+; ====================================================================
+;                        kmem_cache_alloc		//added by lq, 22/12/30
+; ====================================================================
+kmem_cache_alloc:
+	push	ebx			
+	mov	ebx, esp
+	mov	eax, _NR_kmem_cache_alloc
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+; ====================================================================
+;                        kmem_cache_destroy		//added by lq, 22/12/30
+; ====================================================================
+kmem_cache_destroy:
+	push	ebx			
+	mov	ebx,esp
+	mov	eax, _NR_kmem_cache_destroy
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+; ====================================================================
+;                        kmem_cache_grow		//added by lq, 22/12/30
+; ====================================================================
+kmem_cache_grow:
+	push	ebx			
+	mov	ebx,esp
+	mov	eax, _NR_kmem_cache_grow
 	int	INT_VECTOR_SYS_CALL
 	pop	ebx
 	ret
