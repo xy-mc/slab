@@ -20,9 +20,12 @@ int tests_run = 0;
 
 static char *
 test_cache_create() {
-    kmem_cache_t cp = kmem_cache_create("test", 12, 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t',12, 0, NULL, NULL);
     assertt("cache creation returned null?", cp);
-
+    // printf("name:%c\n",cp->name);
+    // printf("effsize:%x\n",cp->effsize);
+    // printf("size:%x\n",cp->size);
+    // printf("%u\n",cp->slab_maxbuf);
     assertt("effective size miscalculated", cp->effsize == 16);
     kmem_cache_destroy(cp);
 
@@ -31,7 +34,7 @@ test_cache_create() {
 
 static char *
 test_cache_grow() {
-    kmem_cache_t cp = kmem_cache_create("test", 12, 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t', 12, 0, NULL, NULL);
 
     kmem_cache_grow(cp);
 
@@ -48,7 +51,7 @@ test_cache_alloc() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
@@ -77,7 +80,7 @@ test_perf_cache_alloc() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
     rdtscll(start);
     for (i=0; i<ITERATIONS; i++)
@@ -108,7 +111,7 @@ test_cache_free() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
@@ -127,7 +130,7 @@ static char *
 test_big_object() {
     int i;
     void * pos;
-    kmem_cache_t cp = kmem_cache_create("test", 1000, 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create('t', 1000, 0, NULL, NULL);
   
     // alocating enough for two slabs (auto-growing)
     for (i = 0; i < 9; i++) {
@@ -142,11 +145,11 @@ test_big_object() {
 static char *
 test_all () {
     run_test(test_cache_create);
-    //run_test(test_cache_grow);
-    //run_test(test_cache_alloc);
-    // run_test(test_perf_cache_alloc);
-    // run_test(test_cache_free);
-    // run_test(test_big_object);
+    // run_test(test_cache_grow);
+    // run_test(test_cache_alloc);
+    //run_test(test_perf_cache_alloc);
+    //run_test(test_cache_free);
+    //run_test(test_big_object);
     return 0;
 }
 

@@ -3,7 +3,7 @@
 
 // #include <stdlib.h>
 // #include <unistd.h>
-#include "stdio.h"
+#include "type.h"
 
 #define PAGE_SZ 0x1000
 #define SLAB_SMALL_OBJ_SZ PAGE_SZ/8
@@ -36,7 +36,7 @@ struct kmem_slab {
 };
 
 struct kmem_cache { //slab缓存
-    char * name;
+    char name;
     size_t size;//大小      zys:对象大小
     size_t effsize;//取整之后的大小     zys:对象对齐后大小
     int slab_maxbuf;//最大的个数(应该)
@@ -47,27 +47,26 @@ struct kmem_cache { //slab缓存
 };
 
 
-// kmem_cache_t
-// kmem_cache_create(char *name, size_t size, int align, 
-//                   void (*constructor)(void *, size_t),
-//                   void (*destructor)(void *, size_t));
+kmem_cache_t
+sys_kmem_cache_create(char name, size_t size, int align, 
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t));
 
 
-// void *
-// kmem_cache_alloc(kmem_cache_t cp, int flags);
+void *
+sys_kmem_cache_alloc(kmem_cache_t cp, int flags);
 
-// void 
-// kmem_cache_free(kmem_cache_t cp, void *buf);
+void 
+sys_kmem_cache_free(kmem_cache_t cp, void *buf);
 
-// void 
-// kmem_cache_destroy(kmem_cache_t cp);
+void 
+sys_kmem_cache_destroy(kmem_cache_t cp);
 
-// // TODO
-// void 
-// kmem_cache_grow(kmem_cache_t cp);
+void 
+sys_kmem_cache_grow(kmem_cache_t cp);
 
-// void 
-// kmem_cache_reap(void);
+void 
+sys_kmem_cache_reap(void);
 
 void
 __slab_remove(kmem_cache_t cp, kmem_slab_t slab);

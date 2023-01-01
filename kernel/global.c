@@ -79,11 +79,11 @@ system_call sys_call_table[NR_SYS_CALL] = {
     sys_opendir,    // added by mingxuan 2019-5-17
     sys_createdir,  // added by mingxuan 2019-5-17
     sys_deletedir,   // added by mingxuan 2019-5-17
-    sys_kmem_cache_alloc,    //added  by  lq  2022-12-30
-    sys_kmem_cache_grow,     //added  by  lq  2022-12-30
-    sys_kmem_cache_create,   //added  by  lq  2022-12-30
+    sys_kmem_cache_create,    //added  by  lq  2022-12-30
+    sys_kmem_cache_alloc,     //added  by  lq  2022-12-30
+    sys_kmem_cache_free,   //added  by  lq  2022-12-30
     sys_kmem_cache_destroy,  //added  by  lq  2022-12-30
-    sys_kmem_cache_free      //added  by  lq  2022-12-30
+    sys_kmem_cache_grow      //added  by  lq  2022-12-30
 };
 
 TTY tty_table[NR_CONSOLES];	    // added by mingxuan 2019-5-19

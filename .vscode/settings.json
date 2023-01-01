@@ -12,6 +12,7 @@
         "proto.h": "c",
         "global.h": "c",
         "proc.h": "c",
-        "protect.h": "c"
+        "protect.h": "c",
+        "type.h": "c"
     }
 }

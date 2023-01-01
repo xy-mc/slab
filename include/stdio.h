@@ -4,7 +4,7 @@
 #include "const.h"  //added by mingxuan 2019-5-19
 #include "type.h" //added by mingxuan 2019-5-19
 #include "stdarg.h"
-
+#include "slab.h"
 #ifndef _STDIO_H_  //added by mingxuan 2019-5-19
 #define _STDIO_H_  //added by mingxuan 2019-5-19
 
@@ -21,7 +21,21 @@ int fork();
 int pthread(void *arg);	
 void udisp_int(int arg);
 void udisp_str(char* arg);
+kmem_cache_t
+kmem_cache_create(char name, size_t size, int align,  
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t));   //added by lq  2023.1.1
+void *
+kmem_cache_alloc(kmem_cache_t cp, int flags);
 
+void 
+kmem_cache_free(kmem_cache_t cp, void *buf);
+
+void 
+kmem_cache_destroy(kmem_cache_t cp);
+
+void 
+kmem_cache_grow(kmem_cache_t cp);
 //added by xw
 /* file system */
 #define	MAX_FILENAME_LEN	12

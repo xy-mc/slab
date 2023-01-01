@@ -23,18 +23,25 @@
     Returns a cache pointer or NULL if no memory is available.
 */
 kmem_cache_t
-sys_kmem_cache_create(char *name, size_t size, int align, 
+sys_kmem_cache_create(char name, size_t size, int align, 
                   void (*constructor)(void *, size_t),
                   void (*destructor)(void *, size_t)) { //zys:整一个新的缓冲器
-    panic("error");
+    //panic("error");
     kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
-    panic("error");
+    //panic("error");
     if (cp != NULL) {
-        if (align == 0) align = SLAB_DEFAULT_ALIGN;//内存对齐
-
+        if (align == 0) 
+            align = 8;//内存对齐
+        else
+            kprintf("\nerror:%d\n",align);
+        //kprintf("\nnitian%c\n",name);
+        //panic("error:%d",align);
         cp->name = name;
+        kprintf("name:%c\n",name);
         cp->size = size;    //zys:对象大小
+        kprintf("size:%u\n",size);
         cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
+        kprintf("effsize:%u\n",cp->effsize);
         cp->constructor = constructor;  //zys:构造函数
         cp->destructor = destructor;    //zys:析构函数
         cp->slabs = NULL;       //zys:刚开始初始化为空
