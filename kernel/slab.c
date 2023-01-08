@@ -22,28 +22,29 @@
 
     Returns a cache pointer or NULL if no memory is available.
 */
+
 kmem_cache_t
-sys_kmem_cache_create(char name, size_t size, int align, 
-                  void (*constructor)(void *, size_t),
-                  void (*destructor)(void *, size_t)) { //zys:整一个新的缓冲器
+do_kmem_cache_create(size_t size,char name) { //zys:整一个新的缓冲器
     //panic("error");
     kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
+    //kprintf("error:%d\n",sizeof (struct kmem_cache));
     //panic("error");
     if (cp != NULL) {
-        if (align == 0) 
-            align = 8;//内存对齐
-        else
-            kprintf("\nerror:%d\n",align);
+        // if (align == 0) 
+        //     align = 8;//内存对齐
+        // else
+        //     kprintf("error:%d\n",align);
+        int align=8;
         //kprintf("\nnitian%c\n",name);
         //panic("error:%d",align);
         cp->name = name;
-        kprintf("name:%c\n",name);
+        kprintf("name:%d\n",name);
         cp->size = size;    //zys:对象大小
         kprintf("size:%u\n",size);
         cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
         kprintf("effsize:%u\n",cp->effsize);
-        cp->constructor = constructor;  //zys:构造函数
-        cp->destructor = destructor;    //zys:析构函数
+        // cp->constructor = constructor;  //zys:构造函数
+        // cp->destructor = destructor;    //zys:析构函数
         cp->slabs = NULL;       //zys:刚开始初始化为空
         cp->slabs_back = NULL;
 
@@ -79,9 +80,9 @@ sys_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新�
     // if this is a small object
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，slab分配一个页
         // allocating one page
-        // if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪  你自己查
-            // return;
-        mem=sys_kmalloc_4k();
+        if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪  你自己查
+            return;
+        //mem=sys_kmalloc_4k();
         // positioning slab at the end of the page
         slab = mem + PAGE_SZ - sizeof(struct kmem_slab);    //zys:放在页后面，最后一个字节为页尾
 
@@ -103,10 +104,10 @@ sys_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新�
     // if this is a large object
     else {          //zys:大对象
         // allocating pages
-        // if (0 != posix_memalign(&mem, PAGE_SZ, (cp->slab_maxbuf * cp->effsize)/PAGE_SZ))//第三个参数是第二个参数的整数倍,第二个参数为2的幂
+        if (0 != posix_memalign(&mem, PAGE_SZ, (cp->slab_maxbuf * cp->effsize)/PAGE_SZ))//第三个参数是第二个参数的整数倍,第二个参数为2的幂
             //我感觉这里有点问题,第三个参数大概率很小啊
-            // return;
-        mem=sys_kmalloc_4k();
+            return;
+        // mem=sys_kmalloc_4k();
         // allocating slab
         slab = (kmem_slab_t)sys_malloc(sizeof(struct kmem_slab));
         
@@ -355,4 +356,29 @@ __slab_move_to_back(kmem_cache_t cp, kmem_slab_t slab) {    //zys:插到队尾�
         cp->slabs_back->prev = slab;
     }
     cp->slabs_back = slab;
+}
+int posix_memalign(void **memptr, size_t alignment, size_t size)//added by lq   2023.1.7
+{
+  if( size == (size_t) 0 )
+  {
+    //If size is 0, then the value placed in *memptr is either NULL
+    *memptr = NULL;
+    return 0;
+  }
+  else if(alignment % 2 != 0 || alignment % sizeof( void*) != 0 )
+  {
+    //EINVAL The alignment argument was not a power of two, or was not a multiple of sizeof(void *).
+    return EINVAL;
+  }
+
+  *memptr = malloc(size);
+  if(*memptr == NULL)
+  {
+    //ENOMEM There was insufficient memory to fulfill the allocation request.
+    return ENOMEM;
+  }
+  else
+  {
+    return 0;
+  }
 }

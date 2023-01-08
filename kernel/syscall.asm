@@ -109,7 +109,7 @@ get_pid:
 ; ; ====================================================================
  kmalloc:
  	push	ebx
- 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!
+ 	mov	ebx,[esp+8] ; 将C函数调用时传来的参数放到ebx里!!
  	mov	eax, _NR_kmalloc
  	int	INT_VECTOR_SYS_CALL
  	pop	ebx
@@ -131,7 +131,7 @@ get_pid:
 ; ; ====================================================================
 malloc:
 	push	ebx
- 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	ebx,[esp+8] ; 将C函数调用时传来的参数放到ebx里!!111
  	mov	eax, _NR_malloc
  	int	INT_VECTOR_SYS_CALL
  	pop	ebx
@@ -153,7 +153,7 @@ malloc:
 ; ; ====================================================================
  free:
  	push	ebx
- 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	ebx,[esp+8] ; 将C函数调用时传来的参数放到ebx里!!111
  	mov	eax, _NR_free
  	int	INT_VECTOR_SYS_CALL
  	pop	ebx
@@ -164,7 +164,7 @@ malloc:
 ; ; ====================================================================
  free_4k:
  	push	ebx
- 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	ebx,[esp+8] ; 将C函数调用时传来的参数放到ebx里!!111
  	mov	eax, _NR_free_4k
  	int	INT_VECTOR_SYS_CALL
  	pop	ebx
@@ -380,7 +380,7 @@ deletedir:
 ;                        kmem_cache_create		//added by lq, 22/12/30
 ; ====================================================================
 kmem_cache_create:
-	push	ebx			
+	push	ebx
 	mov	ebx, esp
 	mov	eax, _NR_kmem_cache_create
 	int	INT_VECTOR_SYS_CALL

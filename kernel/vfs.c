@@ -16,7 +16,7 @@
 #include "vfs.h"
 #include "fat32.h"
 #include "stdio.h"
-
+#include "slab.h"
 //static struct device  device_table[NR_DEV];  //deleted by mingxuan 2020-10-18
 static struct vfs  vfs_table[NR_FS];   //modified by mingxuan 2020-10-18
 
@@ -262,7 +262,11 @@ int sys_deletedir(void *uesp) {
     return do_vdeletedir((char *)get_arg(uesp, 1));
 }
 
-
+kmem_cache_t
+sys_kmem_cache_create(void *uesp)
+{
+    return do_kmem_cache_create(get_arg(uesp, 1), get_arg(uesp, 2));
+}
 /*======================================================================*
                               do_v* 系列函数
  *======================================================================*/

@@ -12,7 +12,8 @@
 
 #define KM_SLEEP    0x00
 #define KM_NOSLEEP  0x01
-
+#define EINVAL      1
+#define ENOMEM      2
 struct kmem_bufctl;
 struct kmem_slab;
 struct kmem_cache;
@@ -40,18 +41,15 @@ struct kmem_cache { //slab缓存
     size_t size;//大小      zys:对象大小
     size_t effsize;//取整之后的大小     zys:对象对齐后大小
     int slab_maxbuf;//最大的个数(应该)
-    void (*constructor)(void *, size_t);//构造函数
-    void (*destructor)(void *, size_t);//析构函数
+    //void (*constructor)(void *, size_t);//构造函数
+    //void (*destructor)(void *, size_t);//析构函数
     kmem_slab_t slabs;// 首个 kmem_slab     zys:队列头
     kmem_slab_t slabs_back;// 最新的 kmem_slab  zys:队尾
 };
 
 
 kmem_cache_t
-sys_kmem_cache_create(char name, size_t size, int align, 
-                  void (*constructor)(void *, size_t),
-                  void (*destructor)(void *, size_t));
-
+do_kmem_cache_create(size_t size,char name);
 
 void *
 sys_kmem_cache_alloc(kmem_cache_t cp, int flags);
@@ -77,4 +75,6 @@ __slab_move_to_front(kmem_cache_t cp, kmem_slab_t slab);
 void
 __slab_move_to_back(kmem_cache_t cp, kmem_slab_t slab);
 
+int 
+posix_memalign(void **memptr, size_t alignment, size_t size);
 #endif

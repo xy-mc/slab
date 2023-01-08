@@ -88,9 +88,7 @@ void sleep(int n);			//added by xw, 18/4/19
 void print_E();
 void print_F();
 kmem_cache_t
-kmem_cache_create(char name, size_t size, int align,  
-                  void (*constructor)(void *, size_t),
-                  void (*destructor)(void *, size_t));   //added by lq  2023.1.1
+kmem_cache_create(size_t size,char name);   //added by lq  2023.1.1
 void *
 kmem_cache_alloc(kmem_cache_t cp, int flags);
 
@@ -134,10 +132,6 @@ u32 sys_exec(char* path);		//add by visual 2016.5.23
 int sys_fork();					//add by visual 2016.5.25
 
 /*slab.c*/
-kmem_cache_t
-sys_kmem_cache_create(char name, size_t size, int align,  
-                  void (*constructor)(void *, size_t),
-                  void (*destructor)(void *, size_t));   //added by lq 2023.1.1
 void *
 sys_kmem_cache_alloc(kmem_cache_t cp, int flags);
 

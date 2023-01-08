@@ -1,12 +1,12 @@
-#include "slab.h"
-#include "stdio.h"
+#include "type.h"
+#include "const.h"
 #include "protect.h"
+#include "string.h"
 #include "proc.h"
 #include "global.h"
 #include "proto.h"
-
-#include "assert.h"
-#include "string.h"
+#include "stdio.h"
+#include "slab.h"
 #define ITERATIONS 3000
 
 #define rdtscll(val) __asm__ __volatile__("rdtsc" : "=A" (val))
@@ -20,133 +20,133 @@ int tests_run = 0;
 
 static char *
 test_cache_create() {
-    kmem_cache_t cp = kmem_cache_create('t',12, 0, NULL, NULL);
+    kmem_cache_t cp = kmem_cache_create(12,'t');
     assertt("cache creation returned null?", cp);
-    // printf("name:%c\n",cp->name);
-    // printf("effsize:%x\n",cp->effsize);
-    // printf("size:%x\n",cp->size);
-    // printf("%u\n",cp->slab_maxbuf);
+    //printf("name:%c\n",cp->name);
+    printf("effsize:%x\n",cp->effsize);
+    printf("size:%x\n",cp->size);
+    printf("%u\n",cp->slab_maxbuf);
     assertt("effective size miscalculated", cp->effsize == 16);
     kmem_cache_destroy(cp);
 
     return 0;
 }
 
-static char *
-test_cache_grow() {
-    kmem_cache_t cp = kmem_cache_create('t', 12, 0, NULL, NULL);
+// static char *
+// test_cache_grow() {
+//     kmem_cache_t cp = kmem_cache_create('t', 12, 0, NULL, NULL);
 
-    kmem_cache_grow(cp);
+//     kmem_cache_grow(cp);
 
-    kmem_cache_destroy(cp);
+//     kmem_cache_destroy(cp);
 
-    return 0;
-}
+//     return 0;
+// }
 
-static char *
-test_cache_alloc() {
-    // 12-byte struct
-    struct test {
-        int a, b, c;
-    };
-    struct test * obj;
+// static char *
+// test_cache_alloc() {
+//     // 12-byte struct
+//     struct test {
+//         int a, b, c;
+//     };
+//     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
+//     kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
-    obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+//     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
-    obj->a=1;
-    obj->b=1;
-    obj->c=1;
+//     obj->a=1;
+//     obj->b=1;
+//     obj->c=1;
 
-    obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+//     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
-    obj->a=1;
-    obj->b=1;
-    obj->c=1;
+//     obj->a=1;
+//     obj->b=1;
+//     obj->c=1;
 
-    kmem_cache_destroy(cp);
+//     kmem_cache_destroy(cp);
 
-    return 0;
-}
+//     return 0;
+// }
 
-static char *
-test_perf_cache_alloc() {
-    unsigned long long start, end;    
-    int i;
-    // 12-byte struct
-    struct test {
-        int a, b, c;
-    };
-    struct test * obj;
+// static char *
+// test_perf_cache_alloc() {
+//     unsigned long long start, end;    
+//     int i;
+//     // 12-byte struct
+//     struct test {
+//         int a, b, c;
+//     };
+//     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
+//     kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
-    rdtscll(start);
-    for (i=0; i<ITERATIONS; i++)
-        obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
-    rdtscll(end);
+//     rdtscll(start);
+//     for (i=0; i<ITERATIONS; i++)
+//         obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+//     rdtscll(end);
 
-    printf("# %lld cycles for cache mem alloc\n", (end-start)/ITERATIONS);
-    obj->a = 1;
+//     printf("# %lld cycles for cache mem alloc\n", (end-start)/ITERATIONS);
+//     obj->a = 1;
 
-    rdtscll(start);
-    for (i=0; i<ITERATIONS; i++)
-        obj = (struct test *)malloc(sizeof(struct test));
-    rdtscll(end);
+//     rdtscll(start);
+//     for (i=0; i<ITERATIONS; i++)
+//         obj = (struct test *)malloc(sizeof(struct test));
+//     rdtscll(end);
 
 
-    printf("# %lld cycles for malloc\n", (end-start)/ITERATIONS);
+//     printf("# %lld cycles for malloc\n", (end-start)/ITERATIONS);
 
-    kmem_cache_destroy(cp);
+//     kmem_cache_destroy(cp);
 
-    return 0;
-}
+//     return 0;
+// }
 
-static char *
-test_cache_free() {
-    // 12-byte struct
-    struct test {
-        int a, b, c;
-    };
-    struct test * obj;
+// static char *
+// test_cache_free() {
+//     // 12-byte struct
+//     struct test {
+//         int a, b, c;
+//     };
+//     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
+//     kmem_cache_t cp = kmem_cache_create('t', sizeof(struct test), 0, NULL, NULL);
 
-    obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+//     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
-    obj->a=1;
-    obj->b=1;
-    obj->c=1;
+//     obj->a=1;
+//     obj->b=1;
+//     obj->c=1;
 
-    kmem_cache_free(cp, obj);
+//     kmem_cache_free(cp, obj);
 
-    kmem_cache_destroy(cp);
+//     kmem_cache_destroy(cp);
 
-    return 0;
-}
+//     return 0;
+// }
 
-static char *
-test_big_object() {
-    int i;
-    void * pos;
-    kmem_cache_t cp = kmem_cache_create('t', 1000, 0, NULL, NULL);
+// static char *
+// test_big_object() {
+//     int i;
+//     void * pos;
+//     kmem_cache_t cp = kmem_cache_create('t', 1000, 0, NULL, NULL);
   
-    // alocating enough for two slabs (auto-growing)
-    for (i = 0; i < 9; i++) {
-        pos = kmem_cache_alloc(cp, KM_NOSLEEP);
-    }
+//     // alocating enough for two slabs (auto-growing)
+//     for (i = 0; i < 9; i++) {
+//         pos = kmem_cache_alloc(cp, KM_NOSLEEP);
+//     }
 
-    kmem_cache_destroy(cp);
+//     kmem_cache_destroy(cp);
 
-    return 0;
-}
+//     return 0;
+// }
 
 static char *
 test_all () {
     run_test(test_cache_create);
-    // run_test(test_cache_grow);
-    // run_test(test_cache_alloc);
+    //run_test(test_cache_grow);
+    //run_test(test_cache_alloc);
     //run_test(test_perf_cache_alloc);
     //run_test(test_cache_free);
     //run_test(test_big_object);
