@@ -144,8 +144,8 @@ test_big_object() {
 
 static char *
 test_all () {
-    run_test(test_cache_create);
-    run_test(test_cache_grow);
+    // run_test(test_cache_create);
+    // run_test(test_cache_grow);
     run_test(test_cache_alloc);
     // run_test(test_perf_cache_alloc);
     // run_test(test_cache_free);

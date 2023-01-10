@@ -155,6 +155,7 @@ do_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     // if this is a small object
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象
         buf = cp->slabs->free_list;         //zys:空闲位置
+        kprintf("\ndizhi:%x\n",buf);
         cp->slabs->free_list = *((void**)buf);  //zys:指向下一个位置
         cp->slabs->bufcount++;   //链表操作看看最下面那三个涉及链表的就能懂了   zys:已用+1
     }
@@ -167,7 +168,7 @@ do_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     // if slab is empty
     if (cp->slabs->bufcount == cp->slab_maxbuf) //满的放队尾，这块也就能理解为什么只检查队头是否满了
         __slab_move_to_back(cp, cp->slabs);
-    // kprintf("\nerror\n");
+    kprintf("error\n");
     return buf;     //返回分配的地址
 }
 
