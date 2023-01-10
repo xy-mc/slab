@@ -13,6 +13,7 @@
         "global.h": "c",
         "proc.h": "c",
         "protect.h": "c",
-        "type.h": "c"
+        "type.h": "c",
+        "memman.h": "c"
     }
 }

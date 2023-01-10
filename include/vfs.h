@@ -1,7 +1,7 @@
 /**********************************************************
 *	vfs.h       //added by mingxuan 2019-5-17
 ***********************************************************/
-
+#include "slab.h"
 //#define NR_DEV 10
 #define NR_FS 10		//modified by mingxuan 2020-10-18
 #define DEV_NAME_LEN 15
@@ -41,6 +41,12 @@ int sys_delete(void *uesp);
 int sys_opendir(void *uesp);
 int sys_createdir(void *uesp);
 int sys_deletedir(void *uesp);
+kmem_cache_t  sys_kmem_cache_create(void *uesp); //added by lq 2023 1.8
+void sys_kmem_cache_grow(void *uesp);
+void *
+sys_kmem_cache_alloc(void *uesp);
+void sys_kmem_cache_free(void *uesp);
+void sys_kmem_cache_destroy(void *uesp);
 
 int do_vopen(const char *path, int flags);
 int do_vclose(int fd);
@@ -53,7 +59,22 @@ int do_vdelete(char *path);
 int do_vopendir(char *dirname);
 int do_vcreatedir(char *dirname);
 int do_vdeletedir(char *dirname);
+kmem_cache_t
+do_kmem_cache_create(char *name, size_t size, int align);
+                //   void (*constructor)(void *, size_t),
+                //   void (*destructor)(void *, size_t)) ;
 
+void *
+do_kmem_cache_alloc(kmem_cache_t cp, int flags);
+
+void 
+do_kmem_cache_free(kmem_cache_t cp, void *buf);
+
+void 
+do_kmem_cache_destroy(kmem_cache_t cp);
+
+void 
+do_kmem_cache_grow(kmem_cache_t cp);
 void init_vfs();
 void init_file_desc_table();
 void init_fileop_table();

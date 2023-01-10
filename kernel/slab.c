@@ -8,7 +8,7 @@
 #include "proc.h"
 #include "global.h"
 #include "proto.h"
-
+#include "memman.h"
 #include "assert.h"
 #include "string.h"
 // #include "slab.h"
@@ -24,35 +24,33 @@
 */
 
 kmem_cache_t
-do_kmem_cache_create(size_t size,char name) { //zys:整一个新的缓冲器
+do_kmem_cache_create(char *name, size_t size, int align)
+                //   void (*constructor)(void *, size_t),
+                //   void (*destructor)(void *, size_t)) 
+{
     //panic("error");
     kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
     //kprintf("error:%d\n",sizeof (struct kmem_cache));
     //panic("error");
-    if (cp != NULL) {
-        // if (align == 0) 
-        //     align = 8;//内存对齐
-        // else
-        //     kprintf("error:%d\n",align);
-        int align=8;
-        //kprintf("\nnitian%c\n",name);
-        //panic("error:%d",align);
+    if (cp != NULL) 
+    {
+        if (align == 0) 
+            align = SLAB_DEFAULT_ALIGN;//内存对齐
         cp->name = name;
-        kprintf("name:%d\n",name);
         cp->size = size;    //zys:对象大小
-        kprintf("size:%u\n",size);
         cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
-        kprintf("effsize:%u\n",cp->effsize);
         // cp->constructor = constructor;  //zys:构造函数
         // cp->destructor = destructor;    //zys:析构函数
         cp->slabs = NULL;       //zys:刚开始初始化为空
         cp->slabs_back = NULL;
 
         // if this is for small object
-        if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，对象大小不超过1/8页，即512B
+        if (cp->size <= SLAB_SMALL_OBJ_SZ) 
+        {    //zys:小对象，对象大小不超过1/8页，即512B
             cp->slab_maxbuf = (PAGE_SZ - sizeof(struct kmem_slab)) / cp->effsize;   //记录能容纳slab的最大个数
         }
-        else {      //zys:大对象
+        else 
+        {      //zys:大对象
             // TODO: compute number of objects programmatically
             cp->slab_maxbuf = 8;
 
@@ -70,7 +68,7 @@ do_kmem_cache_create(size_t size,char name) { //zys:整一个新的缓冲器
    @cp cache pointer
 */
 void 
-sys_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的slab
+do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的slab
     void *mem;
     kmem_slab_t slab;
     void *p, *lastbuf;
@@ -145,17 +143,15 @@ sys_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新�
     @cp cache pointer
     @flags flags KM_SLEEP or KM_NOSLEEP
 */
-void *
-sys_kmem_cache_alloc(kmem_cache_t cp, int flags) {
+void*
+do_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     void *buf;
-
     // grow the cache if necessary...
     if (cp->slabs == NULL)      //zys:没有slab
         kmem_cache_grow(cp);
 
     if (cp->slabs->bufcount == cp->slab_maxbuf) //zys:队头的slab满了
         kmem_cache_grow(cp);//已经满了搞一个新的
-
     // if this is a small object
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象
         buf = cp->slabs->free_list;         //zys:空闲位置
@@ -168,11 +164,10 @@ sys_kmem_cache_alloc(kmem_cache_t cp, int flags) {
         buf = bufctl->buf;                  //返回地址
         cp->slabs->bufcount++;//这也是链表操作
     }
-
     // if slab is empty
     if (cp->slabs->bufcount == cp->slab_maxbuf) //满的放队尾，这块也就能理解为什么只检查队头是否满了
         __slab_move_to_back(cp, cp->slabs);
-
+    // kprintf("\nerror\n");
     return buf;     //返回分配的地址
 }
 
@@ -182,7 +177,7 @@ sys_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     @buf object pointer
 */
 void 
-sys_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
+do_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     void * mem;
     kmem_slab_t slab;
     // kmem_bufctl_t bufctl;
@@ -243,7 +238,7 @@ sys_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
     @cp cache pointer
 */
 void 
-sys_kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的cache
+do_kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的cache
     kmem_slab_t slab;
     void * mem;
 
@@ -371,7 +366,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)//added by lq   
     return EINVAL;
   }
 
-  *memptr = malloc(size);
+  *memptr = sys_malloc(size);
   if(*memptr == NULL)
   {
     //ENOMEM There was insufficient memory to fulfill the allocation request.

@@ -261,11 +261,30 @@ int sys_createdir(void *uesp) {
 int sys_deletedir(void *uesp) {
     return do_vdeletedir((char *)get_arg(uesp, 1));
 }
-
-kmem_cache_t
+kmem_cache_t  //added by lq 2023 1.8
 sys_kmem_cache_create(void *uesp)
 {
-    return do_kmem_cache_create(get_arg(uesp, 1), get_arg(uesp, 2));
+    return do_kmem_cache_create((char *)get_arg(uesp, 1), get_arg(uesp, 2),get_arg(uesp,3));
+}
+void 
+sys_kmem_cache_grow(void *uesp)
+{
+    do_kmem_cache_grow((kmem_cache_t)get_arg(uesp,1));
+}
+void *
+sys_kmem_cache_alloc(void *uesp)
+{
+    return do_kmem_cache_alloc((kmem_cache_t)get_arg(uesp,1),get_arg(uesp,2));
+}
+void 
+sys_kmem_cache_free(void *uesp)
+{
+    do_kmem_cache_free((kmem_cache_t)get_arg(uesp,1),(void *)get_arg(uesp,2));
+}
+void 
+sys_kmem_cache_destroy(void *uesp)
+{
+    do_kmem_cache_destroy((kmem_cache_t)get_arg(uesp,1));
 }
 /*======================================================================*
                               do_v* 系列函数

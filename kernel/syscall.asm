@@ -131,7 +131,7 @@ get_pid:
 ; ; ====================================================================
 malloc:
 	push	ebx
- 	mov	ebx,[esp+8] ; 将C函数调用时传来的参数放到ebx里!!111
+ 	mov	ebx,[esp+4] ; 将C函数调用时传来的参数放到ebx里!!111
  	mov	eax, _NR_malloc
  	int	INT_VECTOR_SYS_CALL
  	pop	ebx
