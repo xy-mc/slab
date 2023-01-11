@@ -275,7 +275,8 @@ void *
 sys_kmem_cache_alloc(void *uesp)
 {
     return do_kmem_cache_alloc((kmem_cache_t)get_arg(uesp,1),get_arg(uesp,2));
-    kprintf("??\n");
+    //kprintf("nitian\n");
+    //return NULL;
 }
 void 
 sys_kmem_cache_free(void *uesp)

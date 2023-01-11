@@ -54,7 +54,7 @@ test_cache_alloc() {
 
     kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0);
     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
-    // printf("\nerror\n");
+    //printf("\n??\n");
     obj->a=1;
     obj->b=1;
     obj->c=1;
@@ -144,12 +144,12 @@ test_big_object() {
 
 static char *
 test_all () {
-    // run_test(test_cache_create);
-    // run_test(test_cache_grow);
+    run_test(test_cache_create);
+    run_test(test_cache_grow);
     run_test(test_cache_alloc);
-    // run_test(test_perf_cache_alloc);
-    // run_test(test_cache_free);
-    // run_test(test_big_object);
+    run_test(test_perf_cache_alloc);
+    run_test(test_cache_free);
+    run_test(test_big_object);
     return 0;
 }
 

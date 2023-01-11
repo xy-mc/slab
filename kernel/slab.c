@@ -35,7 +35,7 @@ do_kmem_cache_create(char *name, size_t size, int align)
     if (cp != NULL) 
     {
         if (align == 0) 
-            align = SLAB_DEFAULT_ALIGN;//内存对齐
+            align =SLAB_DEFAULT_ALIGN ;//内存对齐
         cp->name = name;
         cp->size = size;    //zys:对象大小
         cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
@@ -143,19 +143,19 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
     @cp cache pointer
     @flags flags KM_SLEEP or KM_NOSLEEP
 */
-void*
-do_kmem_cache_alloc(kmem_cache_t cp, int flags) {
+void *
+do_kmem_cache_alloc(kmem_cache_t cp, int flags) {//modified by lq 2023.1.11
     void *buf;
     // grow the cache if necessary...
     if (cp->slabs == NULL)      //zys:没有slab
-        kmem_cache_grow(cp);
+        do_kmem_cache_grow(cp);
 
     if (cp->slabs->bufcount == cp->slab_maxbuf) //zys:队头的slab满了
-        kmem_cache_grow(cp);//已经满了搞一个新的
+        do_kmem_cache_grow(cp);//已经满了搞一个新的
     // if this is a small object
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象
         buf = cp->slabs->free_list;         //zys:空闲位置
-        kprintf("\ndizhi:%x\n",buf);
+        //kprintf("\ndizhi:%x\n",buf);
         cp->slabs->free_list = *((void**)buf);  //zys:指向下一个位置
         cp->slabs->bufcount++;   //链表操作看看最下面那三个涉及链表的就能懂了   zys:已用+1
     }
@@ -168,7 +168,7 @@ do_kmem_cache_alloc(kmem_cache_t cp, int flags) {
     // if slab is empty
     if (cp->slabs->bufcount == cp->slab_maxbuf) //满的放队尾，这块也就能理解为什么只检查队头是否满了
         __slab_move_to_back(cp, cp->slabs);
-    kprintf("error\n");
+    //kprintf("error\n");
     return buf;     //返回分配的地址
 }
 
