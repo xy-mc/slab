@@ -7,12 +7,9 @@
 #include "proto.h"
 #include "stdio.h"
 #include "slab.h"
-#define ITERATIONS 3000
+#define ITERATIONS 300000
 
 #define rdtscll(val) __asm__ __volatile__("rdtsc" : "=A" (val))
-
-/* test approach based inspired by MinUnit 
-   http://www.jera.com/techinfo/jtns/jtn002.html */
 #define assertt(message, test) do { if (!(test)) return message; } while (0)
 #define run_test(test) do { char *message = test(); tests_run++; \
                                 if (message) return (char*)message; } while (0)
@@ -20,7 +17,7 @@ int tests_run = 0;
 
 static char *
 test_cache_create() {
-    kmem_cache_t cp = kmem_cache_create("test", 12, 0);
+    kmem_cache_t cp = kmem_cache_create("test", 12, 0, NULL, NULL);
     assertt("cache creation returned null?", cp);
     // printf("name:%s\n",cp->name);
     // printf("effsize:%x\n",cp->effsize);
@@ -35,7 +32,7 @@ test_cache_create() {
 
 static char *
 test_cache_grow() {
-    kmem_cache_t cp = kmem_cache_create("test", 12, 0);
+    kmem_cache_t cp = kmem_cache_create("test", 12, 0, NULL, NULL);
 
     kmem_cache_grow(cp);
 
@@ -52,7 +49,7 @@ test_cache_alloc() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0);
+    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
     //printf("\n??\n");
     obj->a=1;
@@ -80,7 +77,7 @@ test_perf_cache_alloc() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0);
+    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
 
     rdtscll(start);
     for (i=0; i<ITERATIONS; i++)
@@ -97,6 +94,7 @@ test_perf_cache_alloc() {
 
 
     printf("# %lld cycles for malloc\n", (end-start)/ITERATIONS);
+    obj->a = 1;
 
     kmem_cache_destroy(cp);
 
@@ -111,7 +109,7 @@ test_cache_free() {
     };
     struct test * obj;
 
-    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0);
+    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
 
     obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
 
@@ -130,13 +128,11 @@ static char *
 test_big_object() {
     int i;
     void * pos;
-    kmem_cache_t cp = kmem_cache_create("test", 1000, 0);
+    kmem_cache_t cp = kmem_cache_create("test", 1000, 0, NULL, NULL);
   
-    // alocating enough for two slabs (auto-growing)
     for (i = 0; i < 9; i++) {
         pos = kmem_cache_alloc(cp, KM_NOSLEEP);
     }
-
     kmem_cache_destroy(cp);
 
     return 0;

@@ -60,9 +60,9 @@ int do_vopendir(char *dirname);
 int do_vcreatedir(char *dirname);
 int do_vdeletedir(char *dirname);
 kmem_cache_t
-do_kmem_cache_create(char *name, size_t size, int align);
-                //   void (*constructor)(void *, size_t),
-                //   void (*destructor)(void *, size_t)) ;
+do_kmem_cache_create(char *name, size_t size, int align,
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t)) ;
 
 void *
 do_kmem_cache_alloc(kmem_cache_t cp, int flags);

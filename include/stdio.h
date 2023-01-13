@@ -22,9 +22,9 @@ int pthread(void *arg);
 void udisp_int(int arg);
 void udisp_str(char* arg);
 kmem_cache_t
-kmem_cache_create(char *name, size_t size, int align);
-                //   void (*constructor)(void *, size_t),
-                //   void (*destructor)(void *, size_t));   //added by lq  2023.1.1
+kmem_cache_create(char *name, size_t size, int align,
+                  void (*constructor)(void *, size_t),
+                  void (*destructor)(void *, size_t));   //added by lq  2023.1.1
 void *
 kmem_cache_alloc(kmem_cache_t cp, int flags);
 
