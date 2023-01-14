@@ -134,12 +134,17 @@ test_cache_free() {
 static char *
 test_big_object() {
     int i;
-    void * pos;
+    void * pos[9];
     kmem_cache_t cp = kmem_cache_create("test", 1000, 0, NULL, NULL);
   
     for (i = 0; i < 9; i++) {
-        pos = kmem_cache_alloc(cp, KM_NOSLEEP);
+        pos[i] = kmem_cache_alloc(cp, KM_NOSLEEP);
     }
+
+    for (i = 0; i < 9; i++) {
+        kmem_cache_free(cp, pos[i]);
+    }
+
     kmem_cache_destroy(cp);
 
     return 0;

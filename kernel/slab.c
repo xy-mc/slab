@@ -75,13 +75,15 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
         slab->bufcount = 0;
         bufctl = (kmem_bufctl_t)sys_malloc(sizeof(struct kmem_bufctl) * cp->slab_maxbuf);   //zys:分配大小
         bufctl[0].next = NULL;      //zys:前一个为空
-        bufctl[0].buf = mem;        //zys:第一个位置
+        bufctl[0].buf = mem + 8;        //zys:第一个位置
+        *((void **)mem) = &bufctl[0];
         bufctl[0].slab = slab;      //zys:所属slab
         slab->start = &bufctl[0];   //zys:slab开始
         slab->free_list = &bufctl[0];   //zys:目前第一个空闲
         for (i=1; i < cp->slab_maxbuf; i++) {
             bufctl[i].next = slab->free_list;   //zys:空闲列表最后一个
-            bufctl[i].buf = mem + (i*cp->effsize);//没太看懂(这里可能是染色)
+            bufctl[i].buf = mem + i*cp->effsize + (i + 1) * 8;//没太看懂(这里可能是染色)
+            *((void **)(mem + i*cp->effsize + i * 8)) = &bufctl[i];
             //zys:上一行中，指的是buf位置
             //zys:例如大小3K，4K%3K=1K，加数分别为1K，2K，3K，3K，4K，5K，6K
             //zys:除了buf[0]外，偏移量也就分别是4K,8K,12K,15K,19K,23K,27K
@@ -144,7 +146,7 @@ do_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
 
     }
     else {      //zys:free大对象操作，估计是没有完善，这部分后续再补充吧
-        bufctl = (kmem_bufctl_t)0x1000;
+        bufctl = (kmem_bufctl_t)(*((void **)(buf - 8)));
         slab = bufctl->slab;
         bufctl->next = slab->free_list;
         slab->free_list = bufctl;
