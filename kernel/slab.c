@@ -62,7 +62,7 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
         __slab_move_to_front(cp, slab);         //zys:放到队头
         assert(cp->slabs == slab);      //zys:队头是不是这个slab
 
-        // kprintf("\n%p\n%p\n%#x\n%#x\n", mem, slab, sizeof(struct kmem_slab), sizeof(struct kmem_cache));
+        // kprintf("\n%x\n%x\n%x\n%x\n", mem, slab, sizeof(struct kmem_slab), sizeof(struct kmem_cache));
     }
     else {          //zys:大对象
         if (0 != posix_memalign(&mem,PAGE_SZ,cp->slab_maxbuf * cp->effsize))//第三个参数是第二个参数的整数倍,第二个参数为2的幂
@@ -81,7 +81,7 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
         slab->free_list = &bufctl[0];   //zys:目前第一个空闲
         for (i=1; i < cp->slab_maxbuf; i++) {
             bufctl[i].next = slab->free_list;   //zys:空闲列表最后一个
-            bufctl[i].buf = mem + (i*cp->effsize + (PAGE_SZ%cp->effsize * (((i+1)*cp->effsize)/PAGE_SZ)));//没太看懂(这里可能是染色)
+            bufctl[i].buf = mem + (i*cp->effsize);//没太看懂(这里可能是染色)
             //zys:上一行中，指的是buf位置
             //zys:例如大小3K，4K%3K=1K，加数分别为1K，2K，3K，3K，4K，5K，6K
             //zys:除了buf[0]外，偏移量也就分别是4K,8K,12K,15K,19K,23K,27K

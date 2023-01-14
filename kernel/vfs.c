@@ -264,7 +264,8 @@ int sys_deletedir(void *uesp) {
 kmem_cache_t  //added by lq 2023 1.8
 sys_kmem_cache_create(void *uesp)
 {
-    return do_kmem_cache_create((char *)get_arg(uesp, 1), get_arg(uesp, 2),get_arg(uesp,3),(void (*)(void *, size_t))get_arg(uesp,4),(void (*)(void *, size_t))get_arg(uesp,5));
+    return do_kmem_cache_create((char *)get_arg(uesp, 1), get_arg(uesp, 2),get_arg(uesp,3)
+    ,(void (*)(void *, size_t))get_arg(uesp,4),(void (*)(void *, size_t))get_arg(uesp,5));
 }
 void 
 sys_kmem_cache_grow(void *uesp)
