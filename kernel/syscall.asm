@@ -44,6 +44,7 @@ _NR_kmem_cache_alloc  		equ 29; //added by lq 2022-12-30
 _NR_kmem_cache_free  		equ 30; //added by lq 2022-12-30
 _NR_kmem_cache_destroy  	equ 31; //added by lq 2022-12-30
 _NR_kmem_cache_grow  		equ 32; //added by lq 2022-12-30
+_NR_kmem_init				equ 33
 INT_VECTOR_SYS_CALL	equ 0x90
 
 ; 导出符号
@@ -84,6 +85,7 @@ global  kmem_cache_alloc	;		//added by lq 2022-12-30
 global  kmem_cache_free	    ;		//added by lq 2022-12-30
 global  kmem_cache_grow	    ;		//added by lq 2022-12-30
 global  kmem_cache_destroy	;		//added by lq 2022-12-30
+global  kmem_init
 
 
 bits 32
@@ -423,6 +425,17 @@ kmem_cache_grow:
 	push	ebx			
 	mov	ebx,esp
 	mov	eax, _NR_kmem_cache_grow
+	int	INT_VECTOR_SYS_CALL
+	pop	ebx
+	ret
+
+; ====================================================================
+;                        kmem_init				//added by zys, 22/12/30
+; ====================================================================
+kmem_init:
+	push	ebx			
+	mov	ebx,esp
+	mov	eax, _NR_kmem_init
 	int	INT_VECTOR_SYS_CALL
 	pop	ebx
 	ret

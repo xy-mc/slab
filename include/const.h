@@ -77,7 +77,7 @@
 /* system call */
 //#define NR_SYS_CALL     23	//last modified by xw, 18/6/19
 // #define NR_SYS_CALL       28    //modified by mingxuan 2019-5-17
-#define NR_SYS_CALL       33    //modified by lq 2022-12-30
+#define NR_SYS_CALL       34    //modified by lq 2022-12-30
 /* TTY */
 //added by mingxuan 2019-5-19
 #define NR_CONSOLES	4	/* consoles */

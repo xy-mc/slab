@@ -276,8 +276,6 @@ void *
 sys_kmem_cache_alloc(void *uesp)
 {
     return do_kmem_cache_alloc((kmem_cache_t)get_arg(uesp,1),get_arg(uesp,2));
-    //kprintf("nitian\n");
-    //return NULL;
 }
 void 
 sys_kmem_cache_free(void *uesp)
@@ -288,6 +286,11 @@ void
 sys_kmem_cache_destroy(void *uesp)
 {
     do_kmem_cache_destroy((kmem_cache_t)get_arg(uesp,1));
+}
+void
+sys_kmem_init(void *uesp)
+{
+    do_kmem_init();
 }
 /*======================================================================*
                               do_v* 系列函数

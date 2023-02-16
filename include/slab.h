@@ -65,6 +65,9 @@ do_kmem_cache_destroy(kmem_cache_t cp);
 void 
 do_kmem_cache_grow(kmem_cache_t cp);
 
+void
+do_kmem_init();
+
 
 void
 __slab_remove(kmem_cache_t cp, kmem_slab_t slab);

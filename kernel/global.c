@@ -83,7 +83,8 @@ system_call sys_call_table[NR_SYS_CALL] = {
     sys_kmem_cache_alloc,     //added  by  lq  2022-12-30
     sys_kmem_cache_free,   //added  by  lq  2022-12-30
     sys_kmem_cache_destroy,  //added  by  lq  2022-12-30
-    sys_kmem_cache_grow      //added  by  lq  2022-12-30
+    sys_kmem_cache_grow,      //added  by  lq  2022-12-30
+    sys_kmem_init
 };
 
 TTY tty_table[NR_CONSOLES];	    // added by mingxuan 2019-5-19

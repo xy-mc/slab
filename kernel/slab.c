@@ -7,19 +7,39 @@
 #include "memman.h"
 #include "assert.h"
 #include "string.h"
+
+kmem_cache_t cache_cache, cache_slab, cache_bufctl;
+
+void do_kmem_init()
+{
+    void *mem = sys_kmalloc_4k();
+    cache_cache = (kmem_cache_t)mem;
+    cache_cache -> name = "cache";
+    cache_cache -> size = sizeof(struct kmem_cache);
+    cache_cache -> effsize = SLAB_DEFAULT_ALIGN * ((cache_cache -> size - 1)/SLAB_DEFAULT_ALIGN + 1);
+    cache_cache -> constructor = NULL;
+    cache_cache -> destructor = NULL;
+    cache_cache -> slabs = NULL;
+    cache_cache -> slabs_back = NULL;
+    cache_cache -> slab_maxbuf = (PAGE_SZ - sizeof(struct kmem_slab)) / cache_cache -> effsize;
+    cache_slab = do_kmem_cache_create("slab", sizeof(struct kmem_slab), 0, NULL, NULL);
+    cache_bufctl = do_kmem_cache_create("bufctl", sizeof(struct kmem_bufctl), 0, NULL, NULL);
+}
+
 kmem_cache_t
 do_kmem_cache_create(char *name, size_t size, int align,
                   void (*constructor)(void *, size_t),
                   void (*destructor)(void *, size_t)) 
 {
     //panic("error");
-    kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
+    // kmem_cache_t cp = sys_malloc(sizeof(struct kmem_cache));
+    kmem_cache_t cp = do_kmem_cache_alloc(cache_cache, KM_NOSLEEP);
     //kprintf("error:%d\n",sizeof (struct kmem_cache));
     //panic("error");
     if (cp != NULL) 
     {
         if (align == 0) 
-            align =SLAB_DEFAULT_ALIGN ;//内存对齐
+            align = SLAB_DEFAULT_ALIGN ;//内存对齐
         cp->name = name;
         cp->size = size;    //zys:对象大小
         cp->effsize = align * ((size-1)/align + 1);//取整感觉像是对齐   zys:对象对其后大小
@@ -50,7 +70,7 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
     if (cp->size <= SLAB_SMALL_OBJ_SZ) {    //zys:小对象，slab分配一个页
         if (0 != posix_memalign(&mem, PAGE_SZ, PAGE_SZ))//申请PAGE_SZ的内存指向mem,申请成功返回0    zys:我想知道这个函数在哪  你自己查
             return;
-        //mem=sys_kmalloc_4k();
+        // mem=sys_kmalloc_4k();
         slab = mem + PAGE_SZ - sizeof(struct kmem_slab);    //zys:放在页后面，最后一个字节为页尾
 
         slab->next = slab->prev = slab;         //zys:目前队列中就它一个
@@ -69,11 +89,13 @@ do_kmem_cache_grow(kmem_cache_t cp) {  //根据缓冲器模板创建一个新的
             //我感觉这里有点问题,第三个参数大概率很小啊
             return;
         // mem=sys_kmalloc_4k();
-        slab = (kmem_slab_t)sys_malloc(sizeof(struct kmem_slab));
+        // slab = (kmem_slab_t)sys_malloc(sizeof(struct kmem_slab));
+        slab = do_kmem_cache_alloc(cache_slab, KM_NOSLEEP);
         // zys: 这点和上面差不多
         slab->next = slab->prev = slab;        
         slab->bufcount = 0;
-        bufctl = (kmem_bufctl_t)sys_malloc(sizeof(struct kmem_bufctl) * cp->slab_maxbuf);   //zys:分配大小
+        // bufctl = (kmem_bufctl_t)sys_malloc(sizeof(struct kmem_bufctl) * cp->slab_maxbuf);   //zys:分配大小
+        bufctl = do_kmem_cache_alloc(cache_bufctl, KM_NOSLEEP);
         bufctl[0].next = NULL;      //zys:前一个为空
         bufctl[0].buf = mem + 8;        //zys:第一个位置
         *((void **)mem) = &bufctl[0];
@@ -152,9 +174,11 @@ do_kmem_cache_free(kmem_cache_t cp, void *buf) {       //zys:释放一个对象
         slab->free_list = bufctl;
         if (slab->bufcount == 0) {
             __slab_remove(cp, slab);
-            free(slab->start->buf); // free objects
-            free(slab->start); // free bufctls
-            free(slab); // free slab
+            sys_free(slab->start->buf); // free objects
+            // free(slab->start); // free bufctls
+            // free(slab); // free slab
+            do_kmem_cache_free(cache_bufctl, slab -> start);
+            do_kmem_cache_free(cache_slab, slab);
         }   
         if (slab->bufcount == cp->slab_maxbuf-1)    //zys:如果原本是满的，放回队头
             __slab_move_to_front(cp, slab);
@@ -178,11 +202,14 @@ do_kmem_cache_destroy(kmem_cache_t cp) {       //zys:直接删除一个slab的ca
             __slab_remove(cp, slab);
             //zys:这块因为涉及别的因为，需要全部free
             sys_free(slab->start->buf); // free objects
-            sys_free(slab->start); // free bufctls
-            sys_free(slab); // free slab
+            // sys_free(slab->start); // free bufctls
+            // sys_free(slab); // free slab
+            do_kmem_cache_free(cache_bufctl, slab -> start);
+            do_kmem_cache_free(cache_slab, slab);
         }
     }
-    sys_free(cp);   //最后free掉cache结构体
+    // sys_free(cp);   //最后free掉cache结构体
+    do_kmem_cache_free(cache_cache, cp);
 }
 void
 __slab_remove(kmem_cache_t cp, kmem_slab_t slab) {  //从cp中删除slab
@@ -254,7 +281,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)//added by lq   
     {
         return EINVAL;
     }
-    *memptr = sys_malloc(size);
+    *memptr = sys_kmalloc(size);
     if(*memptr == NULL)
     {
         return ENOMEM;

@@ -47,6 +47,7 @@ void *
 sys_kmem_cache_alloc(void *uesp);
 void sys_kmem_cache_free(void *uesp);
 void sys_kmem_cache_destroy(void *uesp);
+void sys_kmem_init();
 
 int do_vopen(const char *path, int flags);
 int do_vclose(int fd);
@@ -75,6 +76,9 @@ do_kmem_cache_destroy(kmem_cache_t cp);
 
 void 
 do_kmem_cache_grow(kmem_cache_t cp);
+
+void do_kmem_init();
+
 void init_vfs();
 void init_file_desc_table();
 void init_fileop_table();

@@ -24,7 +24,7 @@
 
 static int initialize_processes();	//added by xw, 18/5/26
 static int initialize_cpus();		//added by xw, 18/6/2
-
+extern int tests_run;
 /*======================================================================*
                             kernel_main
  *======================================================================*/
@@ -107,7 +107,15 @@ int kernel_main()
 	disable_int();
 	
 	kprintf("-----Processes Begin-----\n");
-	
+	int startr=tests_run;
+	do_kmem_init();
+	char * result = test_all();
+    if (result) 
+        kprintf("Test failed: %s\n", result);
+    else 
+        kprintf("ALL TESTS PASSED!\n");
+
+    kprintf("=====================\nTOTAL TESTS:\t%04d\n", tests_run-startr);
 	/* linear address 0~8M will no longer be mapped to physical address 0~8M.
 	 * note that disp_xx can't work after this function is invoked until processes runs.
 	 * add by visual 2016.5.13; moved by xw, 18/5/30

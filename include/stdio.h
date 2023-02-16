@@ -36,6 +36,9 @@ kmem_cache_destroy(kmem_cache_t cp);
 
 void 
 kmem_cache_grow(kmem_cache_t cp);
+
+void
+kmem_init();
 //added by xw
 /* file system */
 #define	MAX_FILENAME_LEN	12

@@ -7,13 +7,13 @@
 #include "proto.h"
 #include "stdio.h"
 #include "slab.h"
-#define ITERATIONS 30000
-
+#define ITERATIONS 50
+#define BIGITERATIONS 15
 #define rdtscll(val) __asm__ __volatile__("rdtsc" : "=A" (val))
 #define assertt(message, test) do { if (!(test)) return message; } while (0)
-#define run_test(test) do { char *message = test(); tests_run++; \
+#define run_test(test) do { char *message = test(); tests_run1++; \
                                 if (message) return (char*)message; } while (0)
-int tests_run = 0;
+int tests_run1 = 0;
 
 static char *
 test_cache_create() {
@@ -136,22 +136,77 @@ test_big_object() {
     int i;
     void * pos[9];
     kmem_cache_t cp = kmem_cache_create("test", 1000, 0, NULL, NULL);
-  
-    for (i = 0; i < 9; i++) {
+    for (i = 0; i < 9; i++) 
+    {
         pos[i] = kmem_cache_alloc(cp, KM_NOSLEEP);
     }
-
-    for (i = 0; i < 9; i++) {
+    for (i = 0; i < 9; i++) 
+    {
         kmem_cache_free(cp, pos[i]);
     }
-
     kmem_cache_destroy(cp);
-
     return 0;
 }
-
 static char *
-test_all () {
+test_big_perf_cache_alloc() {
+    unsigned long long start, end;    
+    int i;
+    // 1000-byte struct
+    struct test {
+        int a[250];
+    };
+    struct test * obj;
+    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    rdtscll(start);
+    for (i=0; i<BIGITERATIONS; i++)
+    {
+        obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+        obj->a[0]=1;
+    }
+    rdtscll(end);
+    printf("# %lld cycles for big cache mem alloc\n", (end-start)/BIGITERATIONS);
+    rdtscll(start);
+    for (i=0; i<BIGITERATIONS; i++)
+    {
+        obj = (struct test *)malloc(sizeof(struct test));
+        obj->a[0]=1;
+    }
+    rdtscll(end);
+    printf("# %lld cycles for big malloc\n", (end-start)/BIGITERATIONS);
+    kmem_cache_destroy(cp);
+    return 0;
+}
+static char *
+test_big_perf_cache_alloc_free() {
+    unsigned long long start, end;    
+    struct test {// 1000-byte struct
+        int a[250];
+    };
+    struct test * obj;
+    kmem_cache_t cp = kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    rdtscll(start);
+    for (int i=0; i<BIGITERATIONS; i++)
+    {
+        obj = (struct test *)kmem_cache_alloc(cp, KM_NOSLEEP);
+        obj->a[0]=1;
+        kmem_cache_free(cp, obj);
+    }
+    rdtscll(end);
+    printf("# %lld cycles for big cache mem alloc_free\n", (end-start)/BIGITERATIONS);
+    rdtscll(start);
+    for (int i=0; i<BIGITERATIONS; i++)
+    {
+        obj = (struct test *)malloc(sizeof(struct test));
+        obj->a[0]=1;
+        free(obj);
+    }
+    rdtscll(end);
+    printf("# %lld cycles for big malloc_free\n", (end-start)/BIGITERATIONS);
+    kmem_cache_destroy(cp);
+    return 0;
+}
+char *
+test_all1 () {
     run_test(test_cache_create);
     run_test(test_cache_grow);
     run_test(test_cache_alloc);
@@ -159,18 +214,21 @@ test_all () {
     run_test(test_perf_cache_alloc);
     run_test(test_perf_cache_alloc_free);
     run_test(test_big_object);
+    run_test(test_big_perf_cache_alloc);
+    run_test(test_big_perf_cache_alloc_free);
     return 0;
 }
 
 int 
 main(void) {
-    char * result = test_all();
+    kmem_init();
+    char * result = test_all1();
     if (result) 
         printf("Test failed: %s\n", result);
     else 
         printf("ALL TESTS PASSED!\n");
 
-    printf("=====================\nTOTAL TESTS:\t%04d\n", tests_run);
+    printf("=====================\nTOTAL TESTS:\t%04d\n", tests_run1);
 
     return (result != 0);
 }
