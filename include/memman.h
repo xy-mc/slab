@@ -26,6 +26,6 @@ u32 do_malloc_4k();
 u32 do_kmalloc_4k();
 u32 do_free(u32 addr,u32 size);
 u32 do_free_4k(u32 addr);
-
+int posix_memalign(void **memptr, size_t alignment, size_t size);
 
 #endif 

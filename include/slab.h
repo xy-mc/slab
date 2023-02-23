@@ -78,6 +78,4 @@ __slab_move_to_front(kmem_cache_t cp, kmem_slab_t slab);
 void
 __slab_move_to_back(kmem_cache_t cp, kmem_slab_t slab);
 
-int 
-posix_memalign(void **memptr, size_t alignment, size_t size);//added by lq  2023.1.6
 #endif

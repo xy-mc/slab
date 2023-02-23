@@ -277,7 +277,27 @@ u32 memman_free(struct MEMMAN *man, u32 addr, u32 size)
 	man->lostsize += size;
 	return -1;
 }
-
+int posix_memalign(void **memptr, size_t alignment, size_t size)//added by lq   2023.1.7
+{
+    if( size == (size_t) 0 )
+    {
+        *memptr = NULL;
+        return 0;
+    }
+    else if(alignment % 2 != 0 || alignment % sizeof( void*) != 0 )
+    {
+        return EINVAL;
+    }
+    *memptr = sys_kmalloc(size);
+    if(*memptr == NULL)
+    {
+        return ENOMEM;
+    }
+    else
+    {
+        return 0;
+    }
+}
 u32 memman_free_4k(struct MEMMAN *man, u32 addr)
 {
 	return memman_free(man, addr, 0x1000);

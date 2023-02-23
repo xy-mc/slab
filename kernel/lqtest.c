@@ -14,8 +14,19 @@
 #define assertt(message, test) do { if (!(test)) return message; } while (0)
 #define run_test(test) do { char *message = test(); tests_run++; \
                                 if (message) return (char*)message; } while (0)
+#define RAND_MAX 0x7fff
 int tests_run = 0;
-
+unsigned long int next = 1;
+int rand(void)
+{
+    next = next * 1103515245 + 12345;
+    return (unsigned int)(next/65536) % RAND_MAX;
+}
+/*srand函数：为rand函数设置种子数*/
+void srand(unsigned int seed)
+{
+    next = seed;
+}
 static char *
 test_cache_create() {
     kmem_cache_t cp = do_kmem_cache_create("test", 12, 0, NULL, NULL);
@@ -206,6 +217,31 @@ test_big_perf_cache_alloc_free() {
     do_kmem_cache_destroy(cp);
     return 0;
 }
+static char *
+test_random(){
+    unsigned long long start, end;  
+    rdtscll(next);
+    struct test {
+        int a, b, c;
+    };
+    struct test * obj;
+    kmem_cache_t cp = do_kmem_cache_create("test", sizeof(struct test), 0, NULL, NULL);
+    rdtscll(start);
+    for (int i=0; i<ITERATIONS; i++)
+    {
+        int t=rand();
+        if(t%2==0)
+        {
+            obj = (struct test *)do_kmem_cache_alloc(cp, KM_NOSLEEP);
+            obj->a = 1,obj->b=1,obj->c=1;
+        }
+        else
+            do_kmem_cache_free(cp, obj);
+    }
+    rdtscll(end);
+    kprintf("# %lld cycles for random_success\n", (end-start)/ITERATIONS);
+    return 0;
+}
 char *
 test_all () {
     run_test(test_cache_create);
@@ -217,5 +253,6 @@ test_all () {
     run_test(test_big_object);
     run_test(test_big_perf_cache_alloc);
     run_test(test_big_perf_cache_alloc_free);
+    run_test(test_random);
     return 0;
 }

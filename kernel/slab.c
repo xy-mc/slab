@@ -270,24 +270,3 @@ __slab_move_to_back(kmem_cache_t cp, kmem_slab_t slab) {    //zys:插到队尾�
     }
     cp->slabs_back = slab;
 }
-int posix_memalign(void **memptr, size_t alignment, size_t size)//added by lq   2023.1.7
-{
-    if( size == (size_t) 0 )
-    {
-        *memptr = NULL;
-        return 0;
-    }
-    else if(alignment % 2 != 0 || alignment % sizeof( void*) != 0 )
-    {
-        return EINVAL;
-    }
-    *memptr = sys_kmalloc(size);
-    if(*memptr == NULL)
-    {
-        return ENOMEM;
-    }
-    else
-    {
-        return 0;
-    }
-}
